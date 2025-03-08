@@ -1,8 +1,12 @@
-# Netflix ELT Pipeline with Apache Airflow
+# Cloud_972_Projects
+
+Some of my personal work, will be adding cool Data Engineering Projects to learn from and re-create.
+
+## Netflix ELT Pipeline with Apache Airflow
 
 This project implements an ELT (Extract, Load, Transform) pipeline for Netflix titles data using Apache Airflow and PostgreSQL.
 
-## Project Structure
+### Project Structure
 
 ```
 .
@@ -24,7 +28,7 @@ This project implements an ELT (Extract, Load, Transform) pipeline for Netflix t
 └── requirements.txt
 ```
 
-## Pipeline Steps
+### Pipeline Steps
 
 1. **Create Tables**: Creates the initial raw table structure
 2. **Load Data**: Loads data from CSV file into the raw table
@@ -34,12 +38,12 @@ This project implements an ELT (Extract, Load, Transform) pipeline for Netflix t
    - Creating a master data table
    - Handling missing values
 
-## Setup
+### Setup
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd netflix-elt-pipeline
+git clone https://github.com/IdanSil/Cloud_972_Projects.git
+cd Cloud_972_Projects/Netflix_ELT
 ```
 
 2. Start the containers:
@@ -52,22 +56,22 @@ docker-compose up --build
 - Username: airflow
 - Password: airflow
 
-## Database Schema
+### Database Schema
 
-### Raw Table
+#### Raw Table
 - `netflix_raw`: Initial data loaded from CSV
 
-### Transformed Tables
+#### Transformed Tables
 - `netflix`: Master data table with deduplicated records
 - `netflix_directors`: Directors information
 - `netflix_cast`: Cast information
 - `netflix_countries`: Countries information
 - `netflix_genres`: Genres information
 
-## Technologies Used
+### Technologies Used
 
 - Apache Airflow
 - PostgreSQL
 - Docker
 - Python
-- SQL 
+- SQL
