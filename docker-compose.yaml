@@ -1,0 +1,93 @@
+version: "3.8"
+
+services:
+  airflow_db:
+    image: postgres:13
+    container_name: airflow_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "5432:5432"  # Keep default port for Airflow DB
+    networks:
+      - airflow_network
+
+  etl_db:
+    image: postgres:13
+    container_name: etl_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_database
+    ports:
+      - "5433:5432"  # Expose ETL DB on port 5433
+    networks:
+      - airflow_network
+
+  webserver:
+    build: .
+    container_name: airflow_webserver
+    restart: always
+    depends_on:
+      - airflow_db
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow_db/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=airflow
+      - _AIRFLOW_WWW_USER_PASSWORD=airflow
+      - AIRFLOW_CONN_MY_POSTGRES=postgresql://etl_user:etl_password@etl_db/etl_database
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./resources:/opt/airflow/resources
+      - ./sql:/opt/airflow/sql
+    ports:
+      - "8080:8080"
+    entrypoint: >
+      sh -c "airflow db upgrade && 
+             airflow users create --username airflow --password airflow --firstname Admin --lastname User --role Admin --email admin@example.com || true &&
+             airflow webserver"
+    networks:
+      - airflow_network
+
+
+  scheduler:
+    build: .
+    container_name: airflow_scheduler
+    restart: always
+    depends_on:
+      - webserver
+      - airflow_db
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow_db/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW_CONN_MY_POSTGRES=postgresql://etl_user:etl_password@etl_db/etl_database
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./resources:/opt/airflow/resources
+      - ./sql:/opt/airflow/sql
+    command: scheduler
+    networks:
+      - airflow_network
+
+  airflow-init:
+    build: .
+    container_name: airflow_init
+    depends_on:
+      - airflow_db
+    environment:
+      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow_db/airflow
+    entrypoint: ["airflow", "db", "init"]
+    networks:
+      - airflow_network
+
+networks:
+  airflow_network:
+    driver: bridge
