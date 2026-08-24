@@ -1,0 +1,232 @@
+{
+  "cesp_version": "1.0",
+  "name": "atla",
+  "display_name": "Avatar: The Last Airbender",
+  "version": "0.1.0",
+  "description": "Catchphrases and iconic moments from Avatar: The Last Airbender.",
+  "author": {
+    "name": "Idan Silbinger",
+    "github": "IdanSil"
+  },
+  "license": "CC-BY-NC-4.0",
+  "language": "en",
+  "homepage": "https://github.com/IdanSil/Cloud_972_Projects",
+  "tags": [
+    "avatar",
+    "atla",
+    "cartoon",
+    "nickelodeon",
+    "aang",
+    "iroh"
+  ],
+  "categories": {
+    "session.start": {
+      "sounds": [
+        {
+          "file": "sounds/water-earth-fire-air.mp3",
+          "label": "Water. Earth. Fire. Air."
+        },
+        {
+          "file": "sounds/yip-yip.mp3",
+          "label": "Yip yip!"
+        },
+        {
+          "file": "sounds/flameo-hotman.mp3",
+          "label": "Flameo, hotman!"
+        },
+        {
+          "file": "sounds/im-the-avatar-deal-with-it.mp3",
+          "label": "I'm the Avatar! You gotta deal with it!"
+        },
+        {
+          "file": "sounds/appa-groan.mp3",
+          "label": "*Appa groans*"
+        },
+        {
+          "file": "sounds/hello-zuko-here.mp3",
+          "label": "Hello, Zuko here."
+        }
+      ]
+    },
+    "task.acknowledge": {
+      "sounds": [
+        {
+          "file": "sounds/greatest-earthbender.mp3",
+          "label": "I am the greatest earthbender in the world!"
+        },
+        {
+          "file": "sounds/rock-alanche.mp3",
+          "label": "...ready to bury you in a rock-alanche!"
+        },
+        {
+          "file": "sounds/capture-the-avatar-honor.mp3",
+          "label": "I must capture the Avatar to restore my honor."
+        },
+        {
+          "file": "sounds/face-the-music.mp3",
+          "label": "Time to face the music."
+        },
+        {
+          "file": "sounds/air-whoosh.mp3",
+          "label": "*airbending whoosh*"
+        },
+        {
+          "file": "sounds/fire-whoosh.mp3",
+          "label": "*firebending whoosh*"
+        }
+      ]
+    },
+    "task.complete": {
+      "sounds": [
+        {
+          "file": "sounds/boomerang-comes-back.mp3",
+          "label": "Boomerang! You do always come back!"
+        },
+        {
+          "file": "sounds/so-proud-of-you.mp3",
+          "label": "I am so proud of you."
+        },
+        {
+          "file": "sounds/secret-ingredient-is-love.mp3",
+          "label": "The secret ingredient is love."
+        },
+        {
+          "file": "sounds/bumi-cackle.mp3",
+          "label": "*Bumi cackles*"
+        },
+        {
+          "file": "sounds/tsungi-horn.mp3",
+          "label": "*tsungi horn sting*"
+        }
+      ]
+    },
+    "task.error": {
+      "sounds": [
+        {
+          "file": "sounds/my-cabbages.mp3",
+          "label": "MY CABBAGES!"
+        },
+        {
+          "file": "sounds/thats-rough-buddy.mp3",
+          "label": "That's rough, buddy."
+        },
+        {
+          "file": "sounds/girlfriend-turned-into-the-moon.mp3",
+          "label": "My first girlfriend turned into the moon."
+        },
+        {
+          "file": "sounds/your-other-self.mp3",
+          "label": "Only then will your true self reveal itself!"
+        },
+        {
+          "file": "sounds/momo-shriek.mp3",
+          "label": "*Momo shrieks*"
+        },
+        {
+          "file": "sounds/appa-roar.mp3",
+          "label": "*Appa roars*"
+        }
+      ]
+    },
+    "input.required": {
+      "sounds": [
+        {
+          "file": "sounds/who-are-you-what-do-you-want.mp3",
+          "label": "Who are you, and what do you want?"
+        },
+        {
+          "file": "sounds/no-war-in-ba-sing-se.mp3",
+          "label": "There is no war in Ba Sing Se."
+        },
+        {
+          "file": "sounds/hello-zuko-here.mp3",
+          "label": "Hello, Zuko here."
+        },
+        {
+          "file": "sounds/would-you-like-a-cup-of-tea.mp3",
+          "label": "Would you like a cup of tea?"
+        },
+        {
+          "file": "sounds/im-blind-here.mp3",
+          "label": "Hey, I'm blind here!"
+        },
+        {
+          "file": "sounds/lettuce-leaf.mp3",
+          "label": "Lettuce leaf?"
+        }
+      ]
+    },
+    "resource.limit": {
+      "sounds": [
+        {
+          "file": "sounds/i-think-youve-had-enough.mp3",
+          "label": "Okay, I think you've had enough."
+        },
+        {
+          "file": "sounds/its-the-quenchiest.mp3",
+          "label": "It's the quenchiest!"
+        },
+        {
+          "file": "sounds/running-out-of-water.mp3",
+          "label": "We're running out of water."
+        },
+        {
+          "file": "sounds/before-the-comet-arrives.mp3",
+          "label": "You must defeat the Fire Lord before the comet arrives."
+        }
+      ]
+    },
+    "user.spam": {
+      "sounds": [
+        {
+          "file": "sounds/dunderheads.mp3",
+          "label": "And don't you two dunderheads ever forget it!"
+        },
+        {
+          "file": "sounds/melon-lord.mp3",
+          "label": "I am the Melon Lord!"
+        },
+        {
+          "file": "sounds/okay-i-get-it.mp3",
+          "label": "Okay, okay, I get it!"
+        }
+      ]
+    },
+    "session.end": {
+      "sounds": [
+        {
+          "file": "sounds/flameo-hotman.mp3",
+          "label": "Flameo, hotman!"
+        },
+        {
+          "file": "sounds/leaves-from-the-vine.mp3",
+          "label": "Leaves from the vine, falling so slow..."
+        },
+        {
+          "file": "sounds/momo-chirp.mp3",
+          "label": "*Momo chirps*"
+        }
+      ]
+    },
+    "task.progress": {
+      "sounds": [
+        {
+          "file": "sounds/momo-chirp.mp3",
+          "label": "*Momo chirps*"
+        },
+        {
+          "file": "sounds/appa-flight.mp3",
+          "label": "*Appa flight whoosh*"
+        },
+        {
+          "file": "sounds/water-whoosh.mp3",
+          "label": "*waterbending whoosh*"
+        },
+        {
+          "file": "sounds/earth-rumble.mp3",
+          "label": "*earthbending rumble*"
+        }
+      ]
+    }
+  }
+}
