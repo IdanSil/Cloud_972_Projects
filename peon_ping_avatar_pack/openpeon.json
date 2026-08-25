@@ -60,11 +60,11 @@
         },
         {
           "file": "sounds/capture-the-avatar-honor.mp3",
-          "label": "I must capture the Avatar to restore my honor."
+          "label": "I need to capture the Avatar!"
         },
         {
           "file": "sounds/face-the-music.mp3",
-          "label": "Time to face the music."
+          "label": "I beat you all before, and I'll do it again!"
         },
         {
           "file": "sounds/air-whoosh.mp3",
@@ -84,15 +84,15 @@
         },
         {
           "file": "sounds/so-proud-of-you.mp3",
-          "label": "I am so proud of you."
+          "label": "I am so happy you found your way here."
         },
         {
           "file": "sounds/secret-ingredient-is-love.mp3",
-          "label": "The secret ingredient is love."
+          "label": "Sharing tea with a fascinating stranger is one of life's true delights."
         },
         {
           "file": "sounds/bumi-cackle.mp3",
-          "label": "*Bumi cackles*"
+          "label": "You're a mad genius."
         },
         {
           "file": "sounds/tsungi-horn.mp3",
@@ -132,11 +132,11 @@
       "sounds": [
         {
           "file": "sounds/who-are-you-what-do-you-want.mp3",
-          "label": "Who are you, and what do you want?"
+          "label": "Who are you? And what do you want?"
         },
         {
           "file": "sounds/no-war-in-ba-sing-se.mp3",
-          "label": "There is no war in Ba Sing Se."
+          "label": "There's no war in Ba Sing Se."
         },
         {
           "file": "sounds/hello-zuko-here.mp3",
@@ -144,11 +144,11 @@
         },
         {
           "file": "sounds/would-you-like-a-cup-of-tea.mp3",
-          "label": "Would you like a cup of tea?"
+          "label": "Why don't you enjoy a cup of calming jasmine tea?"
         },
         {
           "file": "sounds/im-blind-here.mp3",
-          "label": "Hey, I'm blind here!"
+          "label": "I'm blind!"
         },
         {
           "file": "sounds/lettuce-leaf.mp3",
@@ -168,7 +168,7 @@
         },
         {
           "file": "sounds/running-out-of-water.mp3",
-          "label": "We're running out of water."
+          "label": "This is the last of it."
         },
         {
           "file": "sounds/before-the-comet-arrives.mp3",
@@ -184,7 +184,7 @@
         },
         {
           "file": "sounds/melon-lord.mp3",
-          "label": "I am the Melon Lord!"
+          "label": "I am Melon Lord!"
         },
         {
           "file": "sounds/okay-i-get-it.mp3",

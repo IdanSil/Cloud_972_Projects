@@ -6,7 +6,13 @@ nine event categories — peon-ping draws one at random from the matching pool o
 every agent event, so each category carries a deep enough bench that you don't
 hear the same line twice in a row.
 
-**Status:** manifest complete, audio not yet cut. See [Cutting the clips](#cutting-the-clips).
+**Status:** 36/40 clips cut, verified against a real transcript, and normalized.
+Active as the local `atla` pack (`peon packs use atla`). 4 clips still missing —
+`lettuce-leaf`, `before-the-comet-arrives`, `dunderheads`, `okay-i-get-it` — see
+[Cutting the clips](#cutting-the-clips). A few other slugs now carry a different
+line than originally planned where the exact scripted quote couldn't be sourced
+cleanly; `SOUND_CANDIDATES.md` and the `CLIPS` table in `tools/build_pack.py`
+have the actual wording shipped.
 
 ## Layout
 
