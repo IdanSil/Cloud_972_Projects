@@ -152,6 +152,11 @@ CATEGORY_ORDER = [
 def build_categories():
     categories = {name: {"sounds": []} for name in CATEGORY_ORDER}
     for slug, category, label, _speaker, _episode, _secs, _verified in CLIPS:
+        # Skip clips that haven't been cut yet — an entry pointing at a
+        # missing file means peon-ping silently plays nothing when its
+        # random draw lands on it.
+        if not (PACK_DIR / "sounds" / f"{slug}.mp3").exists():
+            continue
         entry = {"file": f"sounds/{slug}.mp3", "label": label}
         categories[category]["sounds"].append(entry)
         for extra in ALSO_IN.get(slug, []):

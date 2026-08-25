@@ -149,10 +149,6 @@
         {
           "file": "sounds/im-blind-here.mp3",
           "label": "I'm blind!"
-        },
-        {
-          "file": "sounds/lettuce-leaf.mp3",
-          "label": "Lettuce leaf?"
         }
       ]
     },
@@ -169,26 +165,14 @@
         {
           "file": "sounds/running-out-of-water.mp3",
           "label": "This is the last of it."
-        },
-        {
-          "file": "sounds/before-the-comet-arrives.mp3",
-          "label": "You must defeat the Fire Lord before the comet arrives."
         }
       ]
     },
     "user.spam": {
       "sounds": [
         {
-          "file": "sounds/dunderheads.mp3",
-          "label": "And don't you two dunderheads ever forget it!"
-        },
-        {
           "file": "sounds/melon-lord.mp3",
           "label": "I am Melon Lord!"
-        },
-        {
-          "file": "sounds/okay-i-get-it.mp3",
-          "label": "Okay, okay, I get it!"
         }
       ]
     },
