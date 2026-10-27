@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rail Rush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;600;800&display=swap">
+<style>
+  /* Layout: full-screen 3D track, HUD floats on top, camera mirror in the corner. */
+  :root {
+    --ink: #0f1430;
+    --panel: rgba(15, 20, 48, 0.86);
+    --paper: #ffffff;
+    --muted: #b9c2ea;
+    --pink: #ff3d7f;
+    --cyan: #18c6e8;
+    --gold: #ffc21a;
+    --danger: #ff5a3c;
+    --display: "Bungee", "Impact", "Arial Black", system-ui, sans-serif;
+    --body: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--ink); color: var(--paper); font-family: var(--body); }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  [hidden] { display: none !important; }
+
+  /* HUD */
+  .hud {
+    position: fixed; inset: 0 0 auto 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px));
+    pointer-events: none; z-index: 5;
+  }
+  .score { font-family: var(--display); font-size: clamp(28px, 5vw, 56px); line-height: 1; text-shadow: 0 3px 0 var(--ink), 0 0 18px rgba(0,0,0,.35); font-variant-numeric: tabular-nums; }
+  .score small { display: block; font-family: var(--body); font-weight: 800; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); text-shadow: 0 1px 0 var(--ink); margin-top: 4px; }
+  .coins { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: clamp(22px, 3.6vw, 40px); text-shadow: 0 3px 0 var(--ink); font-variant-numeric: tabular-nums; }
+  .coin-dot { width: .8em; height: .8em; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3b0, var(--gold) 45%, #c98a00); box-shadow: 0 2px 0 var(--ink); }
+  .coins.pop { animation: pop .25s ease-out; }
+  @keyframes pop { 50% { transform: scale(1.18); } }
+  .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .tools { display: flex; gap: 8px; pointer-events: auto; }
+  .icon-btn {
+    font: 800 13px var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--paper);
+    background: var(--panel); border: 2px solid rgba(255,255,255,.18); border-radius: 12px; padding: 8px 12px; cursor: pointer;
+  }
+  .icon-btn:focus-visible, .btn:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+
+  /* Camera mirror */
+  .cam {
+    position: fixed; z-index: 6; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    width: min(30vw, 300px); aspect-ratio: 4 / 3; max-width: 100%;
+    border-radius: 16px; overflow: hidden; border: 3px solid rgba(255,255,255,.85); background: #000;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
+  .cam.big { right: 50%; bottom: auto; top: 50%; transform: translate(50%, -42%); width: min(88vw, 640px); }
+  .cam video, .cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cam video { transform: scaleX(-1); object-fit: fill; opacity: .9; }
+  .cam-tag {
+    position: absolute; left: 8px; top: 8px; font: 800 11px var(--body); letter-spacing: .12em; text-transform: uppercase;
+    background: rgba(15,20,48,.8); padding: 4px 8px; border-radius: 8px;
+  }
+
+  /* Panels */
+  .screen {
+    position: fixed; inset: 0; z-index: 10; display: grid; place-items: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px));
+    background: radial-gradient(ellipse at center, rgba(15,20,48,.25), rgba(15,20,48,.65));
+    overflow-y: auto;
+  }
+  .panel {
+    width: min(560px, 100%); background: var(--panel); border-radius: 24px; padding: clamp(20px, 4vw, 34px);
+    border: 2px solid rgba(255,255,255,.12); box-shadow: 0 20px 60px rgba(0,0,0,.45); backdrop-filter: blur(8px);
+    display: grid; gap: 18px;
+  }
+  .logo { font-family: var(--display); font-size: clamp(44px, 10vw, 84px); line-height: .9; margin: 0; text-wrap: balance; }
+  .logo span { color: var(--gold); display: block; }
+  .logo em { font-style: normal; color: var(--pink); }
+  .lead { margin: 0; font-size: 17px; line-height: 1.5; color: var(--muted); max-width: 46ch; }
+  .moves { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .moves li { background: rgba(255,255,255,.06); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; }
+  .moves b { font-family: var(--display); font-weight: 400; font-size: 15px; color: var(--cyan); }
+  .moves span { font-size: 13px; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    font: 800 17px var(--body); letter-spacing: .02em; color: var(--ink); background: var(--gold); border: 0; border-radius: 16px;
+    padding: 15px 22px; cursor: pointer; box-shadow: 0 5px 0 #b37f00; transition: transform .08s, box-shadow .08s; flex: 1 1 200px;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b37f00; }
+  .btn.alt { background: rgba(255,255,255,.12); color: var(--paper); box-shadow: 0 5px 0 rgba(0,0,0,.35); }
+  .field { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  .field-row { display: flex; justify-content: space-between; gap: 12px; }
+  .field input { width: 100%; accent-color: var(--pink); }
+  .note { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .err { margin: 0; color: #ffd0c6; background: rgba(255,90,60,.16); border: 1px solid rgba(255,90,60,.5); padding: 10px 12px; border-radius: 12px; font-size: 14px; line-height: 1.45; }
+
+  /* Setup banner (camera calibration) */
+  .banner {
+    position: fixed; z-index: 7; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 18px);
+    width: min(640px, calc(100% - 32px)); text-align: center; background: var(--panel); border-radius: 18px; padding: 14px 18px;
+    display: grid; gap: 6px; border: 2px solid rgba(255,255,255,.12);
+  }
+  .banner h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(18px, 3.4vw, 28px); text-wrap: balance; }
+  .banner p { margin: 0; color: var(--muted); font-size: 15px; }
+  .banner .actions { justify-content: center; }
+  .banner .btn { flex: 0 1 auto; padding: 10px 16px; font-size: 14px; }
+
+  .big-text {
+    position: fixed; z-index: 8; inset: 0; display: grid; place-items: center; pointer-events: none;
+    font-family: var(--display); font-size: clamp(64px, 18vw, 200px); color: var(--gold); text-shadow: 0 6px 0 var(--ink), 0 0 40px rgba(0,0,0,.4);
+  }
+  .toast {
+    position: fixed; z-index: 8; left: 50%; top: 22%; transform: translateX(-50%); pointer-events: none;
+    font-family: var(--display); font-size: clamp(22px, 5vw, 44px); color: var(--paper); text-shadow: 0 4px 0 var(--ink);
+    opacity: 0; transition: opacity .2s;
+  }
+  .toast.show { opacity: 1; }
+  .toast.warn { color: var(--danger); }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat { background: rgba(255,255,255,.06); border-radius: 14px; padding: 12px; display: grid; gap: 2px; }
+  .stat b { font-family: var(--display); font-weight: 400; font-size: clamp(20px, 5vw, 30px); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .over-title { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(36px, 9vw, 64px); color: var(--pink); line-height: 1; }
+
+  @media (prefers-reduced-motion: reduce) { .cam { transition: none; } .coins.pop { animation: none; } }
+  @media (max-width: 600px) { .cam { width: 36vw; } }
+</style>
+<script type="importmap">
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Rail Rush game view"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="score"><span id="score">0</span><small id="best">Best 0</small></div>
+  <div class="hud-right">
+    <div class="coins" id="coinsBox"><span class="coin-dot"></span><span id="coins">0</span></div>
+    <div class="tools">
+      <button class="icon-btn" id="recenterBtn" type="button" hidden>Recenter</button>
+      <button class="icon-btn" id="muteBtn" type="button">Sound on</button>
+      <button class="icon-btn" id="pauseBtn" type="button">Pause</button>
+    </div>
+  </div>
+</div>
+
+<div class="cam" id="cam" hidden>
+  <video id="video" playsinline muted></video>
+  <canvas id="overlay"></canvas>
+  <div class="cam-tag" id="camTag">Camera</div>
+</div>
+
+<!-- Start -->
+<div class="screen" id="startScreen">
+  <div class="panel">
+    <h1 class="logo">Rail<span>Rush</span></h1>
+    <p class="lead">An endless subway runner you play with your whole body. Stand back from the screen and the runner copies you.</p>
+    <ul class="moves">
+      <li><b>Step left / right</b><span>Switch tracks</span></li>
+      <li><b>Jump</b><span>Hop barriers</span></li>
+      <li><b>Duck</b><span>Roll under signs</span></li>
+      <li><b>Hands up</b><span>Start / play again</span></li>
+    </ul>
+    <label class="field" for="sens">
+      <span class="field-row"><span>Motion sensitivity</span><span id="sensLabel">Normal</span></span>
+      <input id="sens" type="range" min="1" max="5" step="1" value="3">
+    </label>
+    <div class="actions">
+      <button class="btn" id="camBtn" type="button">Play with camera</button>
+      <button class="btn alt" id="keysBtn" type="button">Play with keys / swipes</button>
+    </div>
+    <p class="err" id="camErr" hidden></p>
+    <p class="note">Works best on a laptop, TV or tablet with a webcam, standing 2–3 m back so your head and hips are in view. Video stays on your device. Keys: ← → to switch, ↑ or space to jump, ↓ to roll.</p>
+  </div>
+</div>
+
+<!-- Camera setup banner -->
+<div class="banner" id="setupBanner" hidden>
+  <h2 id="setupTitle">Loading body tracking…</h2>
+  <p id="setupMsg">This takes a few seconds the first time.</p>
+  <div class="actions"><button class="btn alt" id="setupBack" type="button">Back to menu</button></div>
+</div>
+
+<div class="big-text" id="bigText" hidden></div>
+<div class="toast" id="toast"></div>
+
+<!-- Game over -->
+<div class="screen" id="overScreen" hidden>
+  <div class="panel">
+    <h2 class="over-title" id="overTitle">Crashed!</h2>
+    <div class="stats">
+      <div class="stat"><b id="overScore">0</b><span>Score</span></div>
+      <div class="stat"><b id="overCoins">0</b><span>Coins</span></div>
+      <div class="stat"><b id="overBest">0</b><span>Best</span></div>
+    </div>
+    <p class="note" id="overHint">Raise both hands to run again.</p>
+    <div class="actions">
+      <button class="btn" id="againBtn" type="button">Play again</button>
+      <button class="btn alt" id="menuBtn" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pause -->
+<div class="screen" id="pauseScreen" hidden>
+  <div class="panel">
+    <h2 class="over-title" id="pauseTitle">Paused</h2>
+    <p class="lead" id="pauseMsg">Take a breather.</p>
+    <div class="actions">
+      <button class="btn" id="resumeBtn" type="button">Resume</button>
+      <button class="btn alt" id="pauseMenuBtn" type="button">Menu</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+const MP_VER = '0.10.14';
+const MP_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+
+// ---------------------------------------------------------------- constants
+const LANE_W = 2.4;
+const LANES = [-LANE_W, 0, LANE_W];
+const G = 34, JUMP_V = 12.4;          // jump apex ≈ 2.26 m
+const ROLL_T = 0.7;
+const TRAIN_H = 3.4, LOW_H = 1.1, HIGH_BOTTOM = 1.35, HIGH_TOP = 2.35, RAMP_L = 7;
+const AHEAD = 150;
+
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+// ---------------------------------------------------------------- audio
+let ac = null, muted = store.get('rr-muted', false);
+function audioOn() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { ac = null; } }
+  if (ac && ac.state === 'suspended') ac.resume();
+}
+function tone(f1, f2, dur, type = 'square', vol = 0.06, delay = 0) {
+  if (!ac || muted) return;
+  const t0 = ac.currentTime + delay;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f1, t0); o.frequency.exponentialRampToValueAtTime(f2, t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const sfx = {
+  coin: () => { tone(988, 990, 0.06, 'square', 0.04); tone(1319, 1320, 0.12, 'square', 0.04, 0.06); },
+  jump: () => tone(300, 700, 0.18, 'triangle', 0.09),
+  roll: () => tone(500, 140, 0.22, 'triangle', 0.09),
+  lane: () => tone(420, 520, 0.06, 'sine', 0.05),
+  bump: () => tone(160, 90, 0.2, 'sawtooth', 0.08),
+  crash: () => { tone(220, 40, 0.6, 'sawtooth', 0.12); tone(90, 30, 0.7, 'square', 0.08); },
+  go: () => { tone(523, 524, 0.1, 'square', 0.05); tone(784, 785, 0.2, 'square', 0.05, 0.1); },
+  tick: () => tone(660, 661, 0.08, 'square', 0.04),
+};
+
+// ---------------------------------------------------------------- three setup
+const canvas = $('game');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 400);
+camera.position.set(0, 4.3, 7.2);
+
+function canvasTex(w, h, draw, rx = 1, ry = 1) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
+  t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  return t;
+}
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const M = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, metalness: 0, ...o });
+
+// sky
+scene.background = canvasTex(4, 256, (g, w, h) => {
+  const gr = g.createLinearGradient(0, 0, 0, h);
+  gr.addColorStop(0, '#3a8ee8'); gr.addColorStop(0.55, '#8cc8f5'); gr.addColorStop(1, '#f7e6c4');
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+});
+scene.background.wrapS = scene.background.wrapT = THREE.ClampToEdgeWrapping;
+scene.background.repeat.set(1, 1);
+scene.fog = new THREE.Fog(0xdfe3e0, 55, 150);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a735a, 1.25));
+const sun = new THREE.DirectionalLight(0xfff2dc, 1.7); sun.position.set(6, 12, 5); scene.add(sun);
+
+// track bed (gravel + sleepers), 10 units wide, tile is 4.8 units long
+const TRACK_TILE = 4.8;
+const trackTex = canvasTex(512, 256, (g, w, h) => {
+  g.fillStyle = '#8a7660'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 4200; i++) {
+    g.fillStyle = pick(['#6f5d4a', '#9c8770', '#7b6855', '#a8957d', '#5d4d3d']);
+    g.fillRect(Math.random() * w, Math.random() * h, rnd(1, 4), rnd(1, 4));
+  }
+  const pxU = w / 10, pyU = h / TRACK_TILE;
+  for (const lx of LANES) {
+    const cx = (lx + 5) * pxU;
+    for (let i = 0; i < 4; i++) {
+      const y = (i * 1.2 + 0.3) * pyU;
+      g.fillStyle = '#4a3726'; g.fillRect(cx - 1.05 * pxU, y + 2, 2.1 * pxU, 0.32 * pyU);
+      g.fillStyle = '#6b5039'; g.fillRect(cx - 1.05 * pxU, y, 2.1 * pxU, 0.28 * pyU);
+    }
+  }
+}, 1, 280 / TRACK_TILE);
+const track = new THREE.Mesh(new THREE.PlaneGeometry(10, 280), new THREE.MeshStandardMaterial({ map: trackTex, roughness: 1 }));
+track.rotation.x = -Math.PI / 2; track.position.set(0, 0, -120); scene.add(track);
+
+// side platforms
+const SIDE_TILE = 6;
+const sideTex = canvasTex(256, 256, (g, w, h) => {
+  g.fillStyle = '#b9b3a8'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 900; i++) { g.fillStyle = Math.random() < .5 ? '#aca69b' : '#c6c0b5'; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+  g.fillStyle = '#9d978c'; g.fillRect(0, h - 3, w, 3); g.fillRect(w / 2, 0, 3, h);
+  g.fillStyle = '#ffd23f'; g.fillRect(0, 0, 14, h); // safety edge near track
+}, 1, 280 / SIDE_TILE);
+for (const s of [-1, 1]) {
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(14, 280), new THREE.MeshStandardMaterial({ map: sideTex, roughness: 1 }));
+  p.rotation.x = -Math.PI / 2; p.position.set(s * 12, 0.25, -120); if (s < 0) p.rotation.z = Math.PI;
+  scene.add(p);
+  const curb = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 280), M(0x8f8a80));
+  curb.position.set(s * 5.1, 0.125, -120); scene.add(curb);
+}
+
+// rails
+const railMat = M(0xb8c0c8, { metalness: 0.7, roughness: 0.35 });
+for (const lx of LANES) for (const o of [-0.55, 0.55]) {
+  const r = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 280), railMat);
+  r.position.set(lx + o, 0.07, -120); scene.add(r);
+}
+
+// buildings that scroll past
+const winTex = canvasTex(128, 256, (g, w, h) => {
+  g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h);
+  for (let y = 14; y < h - 10; y += 30) for (let x = 10; x < w - 10; x += 28) {
+    g.fillStyle = Math.random() < 0.15 ? '#ffe9a8' : '#5d7390'; g.fillRect(x, y, 18, 20);
+  }
+});
+const buildingCols = [0xf08a5d, 0x6c5b7b, 0xc06c84, 0x355c7d, 0xf6c85f, 0x6fb98f, 0xe5e5e5, 0x9fb7d6];
+const buildings = [];
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+for (const side of [-1, 1]) {
+  let z = 20;
+  for (let i = 0; i < 18; i++) {
+    const len = rnd(7, 15), hgt = rnd(6, 20), dep = rnd(5, 9);
+    const m = new THREE.Mesh(boxGeo, M(pick(buildingCols), { map: winTex }));
+    m.scale.set(dep, hgt, len);
+    m.position.set(side * (9.5 + dep / 2), hgt / 2, z - len / 2);
+    m.userData.len = len; scene.add(m); buildings.push(m);
+    z -= len + rnd(0.5, 4);
+  }
+}
+function scrollScenery(d) {
+  trackTex.offset.y += d / TRACK_TILE;
+  sideTex.offset.y += d / SIDE_TILE;
+  for (const b of buildings) {
+    b.position.z += d;
+    if (b.position.z - b.userData.len / 2 > 20) {
+      let minZ = Infinity;
+      for (const o of buildings) if (Math.sign(o.position.x) === Math.sign(b.position.x)) minZ = Math.min(minZ, o.position.z - o.userData.len / 2);
+      const hgt = rnd(6, 20); b.scale.y = hgt; b.position.y = hgt / 2;
+      b.material.color.setHex(pick(buildingCols));
+      b.position.z = minZ - rnd(0.5, 4) - b.userData.len / 2;
+    }
+  }
+}
+
+// ---------------------------------------------------------------- obstacle meshes
+const trainCols = ['#e8473f', '#2f7de1', '#f2b632', '#35b37e', '#8e5bd8'];
+const trainMats = trainCols.map(col => {
+  const side = canvasTex(512, 128, (g, w, h) => {
+    g.fillStyle = col; g.fillRect(0, 0, w, h);
+    g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, h * 0.78, w, h * 0.22);
+    g.fillStyle = '#ffffff'; g.fillRect(0, h * 0.62, w, 6);
+    for (let x = 18; x < w - 40; x += 62) { g.fillStyle = '#bfe6ff'; g.fillRect(x, 16, 44, 34); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(x, 44, 44, 6); }
+    for (const dx of [0.3, 0.7]) { g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(w * dx, 12, 36, h * 0.66); }
+    for (let i = 0; i < 4; i++) {
+      g.strokeStyle = pick(['#ff3d7f', '#18c6e8', '#111', '#ffffff', '#ffc21a']); g.lineWidth = rnd(5, 10); g.lineCap = 'round';
+      g.beginPath(); const x = rnd(20, w - 120), y = rnd(h * 0.55, h * 0.85);
+      g.moveTo(x, y); g.bezierCurveTo(x + 30, y - 40, x + 60, y + 30, x + rnd(80, 130), y - 10); g.stroke();
+    }
+  });
+  const front = canvasTex(128, 128, (g, w, h) => {
+    g.fillStyle = col; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#1c2640'; g.fillRect(14, 14, w - 28, 46);
+    g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(18, 18, 30, 10);
+    g.fillStyle = '#fff6c4'; g.beginPath(); g.arc(28, 96, 10, 0, 7); g.arc(w - 28, 96, 10, 0, 7); g.fill();
+    g.fillStyle = 'rgba(0,0,0,.3)'; g.fillRect(0, h - 14, w, 14);
+  });
+  const sm = M(0xffffff, { map: side }), fm = M(0xffffff, { map: front }), top = M(0x8f969e);
+  return [sm, sm, top, top, fm, fm];
+});
+const underMat = M(0x2b2b33);
+const stripe = (a, b) => canvasTex(128, 32, (g, w, h) => {
+  for (let x = -h; x < w + h; x += 32) { g.fillStyle = a; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 16, 0); g.lineTo(x + 16 - h, h); g.lineTo(x - h, h); g.fill(); }
+  g.globalCompositeOperation = 'destination-over'; g.fillStyle = b; g.fillRect(0, 0, w, h);
+});
+const lowMat = M(0xffffff, { map: stripe('#e83a3a', '#ffffff') });
+const highMat = M(0xffffff, { map: stripe('#1a1a1a', '#ffc21a') });
+const postMat = M(0x5c6470, { metalness: 0.4, roughness: 0.5 });
+const rampMat = M(0x7d8794, { metalness: 0.3, roughness: 0.6 });
+const coinGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.08, 22); coinGeo.rotateX(Math.PI / 2);
+const coinMat = M(0xffc21a, { metalness: 0.55, roughness: 0.3, emissive: 0x5a3c00 });
+
+function makeTrain(len) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.0, len), pick(trainMats));
+  body.position.set(0, 1.9, -len / 2); g.add(body);
+  const under = new THREE.Mesh(boxGeo, underMat); under.scale.set(1.7, 0.4, len - 0.8); under.position.set(0, 0.2, -len / 2); g.add(under);
+  return g;
+}
+function makeRamp() {
+  const g = new THREE.Group();
+  const hyp = Math.hypot(RAMP_L, TRAIN_H), a = Math.atan2(TRAIN_H, RAMP_L);
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.18, hyp), rampMat);
+  plank.rotation.x = a; plank.position.set(0, TRAIN_H / 2 - 0.05, -RAMP_L / 2); g.add(plank);
+  const leg = new THREE.Mesh(boxGeo, postMat); leg.scale.set(1.6, TRAIN_H * 0.95, 0.3); leg.position.set(0, TRAIN_H * 0.47, -RAMP_L + 0.2); g.add(leg);
+  return g;
+}
+function makeLow() {
+  const g = new THREE.Group();
+  const plank = new THREE.Mesh(boxGeo, lowMat); plank.scale.set(2.1, 0.45, 0.2); plank.position.set(0, LOW_H - 0.225, -0.1); g.add(plank);
+  for (const x of [-0.9, 0.9]) { const l = new THREE.Mesh(boxGeo, postMat); l.scale.set(0.12, LOW_H - 0.4, 0.12); l.position.set(x, (LOW_H - 0.4) / 2, -0.1); g.add(l); }
+  return g;
+}
+function makeHigh() {
+  const g = new THREE.Group();
+  const board = new THREE.Mesh(boxGeo, highMat); board.scale.set(2.2, HIGH_TOP - HIGH_BOTTOM, 0.18); board.position.set(0, (HIGH_TOP + HIGH_BOTTOM) / 2, -0.1); g.add(board);
+  for (const x of [-1.08, 1.08]) { const p = new THREE.Mesh(boxGeo, postMat); p.scale.set(0.14, HIGH_TOP + 0.2, 0.14); p.position.set(x, (HIGH_TOP + 0.2) / 2, -0.1); g.add(p); }
+  return g;
+}
+
+// ---------------------------------------------------------------- runner
+const runner = (() => {
+  const root = new THREE.Group();
+  const pivot = new THREE.Group(); pivot.position.y = 0.95; root.add(pivot);
+  const body = new THREE.Group(); body.position.y = -0.95; pivot.add(body);
+  const mShirt = M(0xff3d7f), mPants = M(0x23408e), mSkin = M(0xe9b98f), mCap = M(0x18c6e8), mShoe = M(0xf5f5f5), mPack = M(0xffc21a), mHair = M(0x3a2414);
+  const add = (geo, mat, x, y, z, parent = body) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); parent.add(m); return m; };
+  add(new THREE.BoxGeometry(0.66, 0.72, 0.38), mShirt, 0, 1.22, 0);
+  add(new THREE.SphereGeometry(0.27, 20, 16), mSkin, 0, 1.82, 0);
+  add(new THREE.SphereGeometry(0.275, 20, 16), mHair, 0, 1.8, 0.04);
+  add(new THREE.SphereGeometry(0.29, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), mCap, 0, 1.86, 0);
+  add(new THREE.BoxGeometry(0.36, 0.05, 0.3), mCap, 0, 1.88, -0.28);
+  add(new THREE.BoxGeometry(0.5, 0.55, 0.22), mPack, 0, 1.25, 0.28);
+  const limb = (x, y, len, w, mat, extraMat) => {
+    const p = new THREE.Group(); p.position.set(x, y, 0); body.add(p);
+    add(new THREE.BoxGeometry(w, len, w + 0.02), mat, 0, -len / 2, 0, p);
+    add(extraMat.geo, extraMat.mat, 0, -len - 0.02, extraMat.z, p);
+    return p;
+  };
+  const armL = limb(-0.43, 1.52, 0.6, 0.17, mShirt, { geo: new THREE.SphereGeometry(0.1, 10, 8), mat: mSkin, z: 0 });
+  const armR = limb(0.43, 1.52, 0.6, 0.17, mShirt, { geo: new THREE.SphereGeometry(0.1, 10, 8), mat: mSkin, z: 0 });
+  const legL = limb(-0.17, 0.86, 0.76, 0.23, mPants, { geo: new THREE.BoxGeometry(0.26, 0.14, 0.38), mat: mShoe, z: -0.06 });
+  const legR = limb(0.17, 0.86, 0.76, 0.23, mPants, { geo: new THREE.BoxGeometry(0.26, 0.14, 0.38), mat: mShoe, z: -0.06 });
+  scene.add(root);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false }));
+  shadow.rotation.x = -Math.PI / 2; scene.add(shadow);
+  return { root, pivot, body, armL, armR, legL, legR, shadow, phase: 0 };
+})();
+
+// ---------------------------------------------------------------- game state
+const game = {
+  state: 'menu',      // menu | setup | countdown | play | dead | over
+  mode: 'keys',       // keys | camera
+  paused: false,
+  P: 0, speed: 9, t: 0, coins: 0, genD: 0,
+  best: store.get('rr-best', 0),
+  lastStumble: -99, shakeT: 0, deadT: 0, cause: '',
+};
+const player = { lane: 1, x: 0, y: 0, vy: 0, grounded: true, ground: 0, rolling: false, rollT: 0, holdDuck: false };
+let entities = [], coins = [];
+const trainEnd = [0, 0, 0];
+let lastTrainEnd = 0;
+
+function clearWorld() {
+  for (const e of entities) scene.remove(e.mesh);
+  for (const c of coins) scene.remove(c.mesh);
+  entities = []; coins = [];
+}
+function resetRun() {
+  clearWorld();
+  Object.assign(game, { P: 0, t: 0, coins: 0, genD: 45, lastStumble: -99, shakeT: 0, deadT: 0, speed: 13 });
+  Object.assign(player, { lane: 1, x: 0, y: 0, vy: 0, grounded: true, ground: 0, rolling: false, rollT: 0 });
+  trainEnd.fill(0); lastTrainEnd = 0;
+  runner.pivot.rotation.set(0, 0, 0); runner.pivot.scale.setScalar(1); runner.pivot.position.y = 0.95;
+  updateHud();
+}
+
+function addEntity(kind, lane, dn, len, mesh, surf) {
+  mesh.position.set(LANES[lane], 0, game.P - dn);
+  scene.add(mesh);
+  const e = { kind, lane, dn, df: dn + len, mesh, surf };
+  entities.push(e); return e;
+}
+function addCoin(lane, d, y = 0.9) {
+  const mesh = new THREE.Mesh(coinGeo, coinMat);
+  mesh.position.set(LANES[lane], y, game.P - d); scene.add(mesh);
+  coins.push({ lane, d, y, mesh });
+}
+function coinLine(lane, d0, d1, y = 0.9) { for (let d = d0; d <= d1; d += 2.2) addCoin(lane, d, y); }
+
+function genRow(D) {
+  const lanes = [0, 1, 2];
+  const busy = lanes.map(l => trainEnd[l] > D - 3);
+  const anyBusy = busy.some(Boolean);
+  const diff = Math.min(1, game.t / 120);
+  if (!anyBusy && D - lastTrainEnd > 12 && Math.random() < 0.38 + diff * 0.15) {
+    const n = Math.random() < 0.35 + diff * 0.25 ? 2 : 1;
+    const tl = [...lanes].sort(() => Math.random() - 0.5).slice(0, n);
+    const len = pick([14, 14, 20, 26]);
+    for (const l of tl) {
+      let start = D;
+      if (Math.random() < 0.4) {
+        addEntity('ramp', l, D, RAMP_L, makeRamp(), function (P) { return Math.max(0, Math.min(1, (P - this.dn) / RAMP_L)) * TRAIN_H; });
+        start = D + RAMP_L;
+        if (Math.random() < 0.7) coinLine(l, start + 1, start + len - 1, TRAIN_H + 0.9);
+      }
+      addEntity('train', l, start, len, makeTrain(len), () => TRAIN_H);
+      trainEnd[l] = start + len;
+      lastTrainEnd = Math.max(lastTrainEnd, start + len);
+    }
+    const free = lanes.filter(l => !tl.includes(l));
+    if (Math.random() < 0.6) coinLine(pick(free), D, D + len * 0.6);
+    return;
+  }
+  const free = lanes.filter(l => !busy[l]);
+  const count = Math.min(free.length, Math.random() < 0.3 + diff * 0.3 ? 2 : 1);
+  const chosen = [...free].sort(() => Math.random() - 0.5).slice(0, count);
+  let coined = false;
+  for (const l of chosen) {
+    if (Math.random() < 0.55) {
+      addEntity('low', l, D, 0.3, makeLow(), () => LOW_H);
+      if (!coined && Math.random() < 0.45) { coined = true; for (let i = -3; i <= 3; i++) addCoin(l, D + i * 1.7, 0.9 + 1.7 * (1 - (i / 3.4) ** 2)); }
+    } else {
+      addEntity('high', l, D, 0.3, makeHigh(), null);
+    }
+  }
+  const rest = free.filter(l => !chosen.includes(l));
+  if (!coined && rest.length && Math.random() < 0.6) coinLine(pick(rest), D - 6, D + 6);
+}
+
+function spawn() {
+  while (game.genD < game.P + AHEAD) {
+    genRow(game.genD);
+    game.genD += Math.max(15, game.speed * 0.95) + rnd(0, 9);
+  }
+}
+
+// ---------------------------------------------------------------- player actions
+const nearestLane = x => (x < -LANE_W / 2 ? 0 : x > LANE_W / 2 ? 2 : 1);
+function laneBlocked(l) {
+  for (const e of entities) {
+    if (e.lane !== l || !e.surf) continue;
+    if (game.P < e.dn - 0.6 || game.P > e.df + 0.3) continue;
+    if (e.surf(game.P) > player.y + 0.5) return true;
+  }
+  return false;
+}
+function stumble() {
+  sfx.bump(); game.shakeT = 0.35;
+  if (game.t - game.lastStumble < 5) { die('caught'); return; }
+  game.lastStumble = game.t; toast('Careful!', true);
+}
+function moveLane(dir, silent = false) {
+  if (game.state !== 'play' || game.paused) return false;
+  const target = player.lane + dir;
+  if (target < 0 || target > 2) { if (!silent) { sfx.bump(); game.shakeT = 0.15; } return false; }
+  if (laneBlocked(target)) { if (!silent) stumble(); return false; }
+  player.lane = target; sfx.lane(); return true;
+}
+function jump() {
+  if (game.state !== 'play' || game.paused || !player.grounded) return;
+  player.vy = JUMP_V; player.grounded = false; player.rolling = false; sfx.jump();
+}
+function duck() {
+  if (game.state !== 'play' || game.paused) return;
+  if (!player.grounded) player.vy = Math.min(player.vy, -26);
+  if (!player.rolling) sfx.roll();
+  player.rolling = true; player.rollT = ROLL_T;
+}
+
+function die(cause) {
+  if (game.state !== 'play') return;
+  game.state = 'dead'; game.deadT = 0; game.cause = cause; game.shakeT = 0.5;
+  sfx.crash();
+  const score = Math.floor(game.P);
+  if (score > game.best) { game.best = score; store.set('rr-best', score); }
+}
+
+// ---------------------------------------------------------------- physics
+function resolve() {
+  const li = nearestLane(player.x);
+  let ground = 0;
+  for (const e of entities) {
+    if (e.lane !== li) continue;
+    if (game.P < e.dn - 0.35 || game.P > e.df + 0.35) continue;
+    if (e.kind === 'high') {
+      const top = player.y + (player.rolling ? 0.9 : 1.9);
+      if (top > HIGH_BOTTOM && player.y < HIGH_TOP) { die('crash'); return 0; }
+      continue;
+    }
+    const s = e.surf(game.P);
+    const tol = e.kind === 'low' ? 0.25 : e.kind === 'ramp' ? 0.7 : 0.55;
+    if (player.y >= s - tol) ground = Math.max(ground, s);
+    else { die('crash'); return 0; }
+  }
+  return ground;
+}
+function step(h) {
+  game.P += game.speed * h;
+  player.x += (LANES[player.lane] - player.x) * Math.min(1, h * 16);
+  player.vy -= G * h; player.y += player.vy * h;
+  const ground = resolve();
+  if (game.state !== 'play') return;
+  player.ground = ground;
+  if (player.y <= ground) { player.y = ground; player.vy = 0; player.grounded = true; }
+  else player.grounded = player.y - ground < 0.02;
+  if (player.rolling) {
+    player.rollT -= h;
+    if (player.rollT <= 0) {
+      if (player.holdDuck && player.grounded) player.rollT = 0.2;
+      else player.rolling = false;
+    }
+  }
+}
+
+function updateEntities() {
+  const P = game.P;
+  entities = entities.filter(e => {
+    if (P - e.df > 14) { scene.remove(e.mesh); return false; }
+    e.mesh.position.z = P - e.dn; return true;
+  });
+}
+function updateCoins(dt) {
+  const P = game.P;
+  coins = coins.filter(c => {
+    if (P - c.d > 10) { scene.remove(c.mesh); return false; }
+    c.mesh.position.z = P - c.d;
+    c.mesh.rotation.y += dt * 4;
+    if (game.state === 'play' && Math.abs(P - c.d) < 0.9 && Math.abs(player.x - LANES[c.lane]) < 1.0 && c.y > player.y - 0.2 && c.y < player.y + (player.rolling ? 1.3 : 2.1)) {
+      scene.remove(c.mesh); game.coins++; sfx.coin();
+      const box = $('coinsBox'); box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop');
+      return false;
+    }
+    return true;
+  });
+}
+
+// ---------------------------------------------------------------- animation
+function animateRunner(dt, running) {
+  const r = runner, p = player;
+  r.root.position.set(p.x, p.y, 0);
+  r.root.rotation.z = (p.x - LANES[p.lane]) * 0.12;
+  r.shadow.position.set(p.x, p.ground + 0.03, 0);
+  r.shadow.scale.setScalar(Math.max(0.4, 1 - (p.y - p.ground) * 0.18));
+  const ease = (o, k, v) => { o[k] += (v - o[k]) * Math.min(1, dt * 14); };
+  if (game.state === 'dead' || game.state === 'over') {
+    ease(r.pivot.rotation, 'x', 1.35); ease(r.armL.rotation, 'x', -2.6); ease(r.armR.rotation, 'x', -2.4);
+    return;
+  }
+  if (p.rolling) {
+    r.pivot.rotation.x -= dt * (Math.PI * 2 / ROLL_T);
+    ease(r.pivot.position, 'y', 0.62); r.pivot.scale.setScalar(0.62);
+    ease(r.legL.rotation, 'x', -1.6); ease(r.legR.rotation, 'x', -1.6); ease(r.armL.rotation, 'x', -1.2); ease(r.armR.rotation, 'x', -1.2);
+    return;
+  }
+  r.pivot.scale.setScalar(1); ease(r.pivot.position, 'y', 0.95);
+  r.pivot.rotation.x = ((r.pivot.rotation.x % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  if (r.pivot.rotation.x > Math.PI) r.pivot.rotation.x -= Math.PI * 2;
+  if (!p.grounded) {
+    ease(r.pivot.rotation, 'x', -0.15);
+    ease(r.legL.rotation, 'x', -1.1); ease(r.legR.rotation, 'x', 0.4); ease(r.armL.rotation, 'x', -2.7); ease(r.armR.rotation, 'x', -2.5);
+    return;
+  }
+  if (running) {
+    r.phase += dt * game.speed * 0.55;
+    const s = Math.sin(r.phase);
+    r.legL.rotation.x = s * 0.95; r.legR.rotation.x = -s * 0.95;
+    r.armL.rotation.x = -s * 0.85; r.armR.rotation.x = s * 0.85;
+    r.body.position.y = -0.95 + Math.abs(Math.cos(r.phase)) * 0.08;
+    ease(r.pivot.rotation, 'x', -0.14);
+  }
+}
+function updateCamera(dt) {
+  const k = Math.min(1, dt * 5);
+  const gy = player.ground;
+  camera.position.x += (player.x * 0.55 - camera.position.x) * k;
+  camera.position.y += (4.3 + gy * 0.75 - camera.position.y) * k;
+  camera.position.z = 7.2;
+  const look = new THREE.Vector3(player.x * 0.75, 1.3 + gy * 0.8, -12);
+  if (game.shakeT > 0) {
+    game.shakeT -= dt;
+    camera.position.x += rnd(-0.15, 0.15); camera.position.y += rnd(-0.1, 0.1);
+  }
+  camera.lookAt(look);
+}
+
+// ---------------------------------------------------------------- HUD + screens
+const show = (id, on) => { $(id).hidden = !on; };
+function updateHud() {
+  $('score').textContent = Math.floor(game.P).toLocaleString();
+  $('coins').textContent = game.coins;
+  $('best').textContent = 'Best ' + game.best.toLocaleString();
+}
+let toastTimer = 0;
+function toast(text, warn = false) {
+  const el = $('toast'); el.textContent = text; el.classList.toggle('warn', warn); el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove('show'), 900);
+}
+function bigText(text) { const el = $('bigText'); el.textContent = text; el.hidden = !text; }
+function setMuteLabel() { $('muteBtn').textContent = muted ? 'Sound off' : 'Sound on'; }
+setMuteLabel();
+
+function goMenu() {
+  game.state = 'menu'; game.paused = false;
+  stopCamera();
+  clearWorld(); resetRun(); game.speed = 9;
+  ['hud', 'overScreen', 'pauseScreen', 'setupBanner', 'cam'].forEach(id => show(id, false));
+  show('startScreen', true); bigText('');
+}
+function startRun() {
+  resetRun();
+  game.state = 'play'; game.paused = false;
+  ['startScreen', 'overScreen', 'pauseScreen', 'setupBanner'].forEach(id => show(id, false));
+  show('hud', true);
+  $('recenterBtn').hidden = game.mode !== 'camera';
+  $('cam').classList.remove('big');
+  bigText(''); toast('GO!'); sfx.go();
+  pose.lane = 1; pose.laneStumbled = false; pose.armJ = true; pose.armD = true; pose.hist = []; game.cause = "";
+}
+function showGameOver() {
+  game.state = 'over';
+  $('overTitle').textContent = game.cause === 'caught' ? 'Caught!' : 'Crashed!';
+  $('overScore').textContent = Math.floor(game.P).toLocaleString();
+  $('overCoins').textContent = game.coins;
+  $('overBest').textContent = game.best.toLocaleString();
+  $('overHint').textContent = game.mode === 'camera' ? 'Raise both hands above your head to run again.' : 'Press Enter or tap Play again.';
+  show('overScreen', true); updateHud();
+  pose.handsSince = 0;
+}
+function setPaused(on, title = 'Paused', msg = 'Take a breather.') {
+  if (game.state !== 'play') return;
+  game.paused = on;
+  $('pauseTitle').textContent = title; $('pauseMsg').textContent = msg;
+  show('pauseScreen', on);
+}
+
+// ---------------------------------------------------------------- body tracking
+const video = $('video'), overlay = $('overlay'), octx = overlay.getContext('2d');
+const SENS = [0.7, 0.85, 1, 1.2, 1.45], SENS_NAMES = ['Low', 'Relaxed', 'Normal', 'High', 'Max'];
+const pose = {
+  landmarker: null, stream: null, lastVideoTime: -1, aspect: 4 / 3,
+  f: null, lastSeen: 0, cx: null,
+  base: null, lane: 1, laneStumbled: false, armJ: true, armD: true,
+  handsSince: 0, countStart: 0, samples: [], lastCount: 0, flash: '', flashT: 0,
+  sens: SENS[store.get('rr-sens', 3) - 1] || 1, lostSince: 0, resumeSince: 0,
+};
+$('sens').value = store.get('rr-sens', 3);
+$('sensLabel').textContent = SENS_NAMES[$('sens').value - 1];
+$('sens').addEventListener('input', e => {
+  const v = +e.target.value; pose.sens = SENS[v - 1]; $('sensLabel').textContent = SENS_NAMES[v - 1]; store.set('rr-sens', v);
+});
+
+function camError(msg) { const el = $('camErr'); el.textContent = msg; el.hidden = !msg; }
+
+async function startCamera() {
+  camError('');
+  if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+    camError('This browser blocks the camera on this page. Open the game from an https:// link in Chrome, Edge or Safari.');
+    return;
+  }
+  game.mode = 'camera'; game.state = 'setup';
+  show('startScreen', false); show('setupBanner', true); show('cam', true); $('cam').classList.add('big');
+  setSetup('Starting camera…', 'Allow camera access when your browser asks.');
+  try {
+    pose.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+  } catch (err) {
+    goMenu();
+    camError(err && err.name === 'NotAllowedError'
+      ? 'Camera access was blocked. Allow the camera for this site in your browser settings, then try again, or play with keys.'
+      : 'No camera found. Plug in or enable a webcam, then try again, or play with keys.');
+    return;
+  }
+  if (game.state !== 'setup') { stopCamera(); return; }
+  video.srcObject = pose.stream;
+  try { await video.play(); } catch {}
+  await new Promise(r => { if (video.videoWidth) r(); else video.onloadedmetadata = () => r(); });
+  pose.aspect = video.videoWidth / video.videoHeight || 4 / 3;
+  $('cam').style.aspectRatio = `${video.videoWidth} / ${video.videoHeight}`;
+  if (!pose.landmarker) {
+    setSetup('Loading body tracking…', 'This takes a few seconds the first time.');
+    try {
+      const vision = await import(`${MP_URL}/vision_bundle.mjs`);
+      const files = await vision.FilesetResolver.forVisionTasks(`${MP_URL}/wasm`);
+      const make = delegate => vision.PoseLandmarker.createFromOptions(files, {
+        baseOptions: { modelAssetPath: MODEL_URL, delegate }, runningMode: 'VIDEO', numPoses: 1,
+        minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+      });
+      try { pose.landmarker = await make('GPU'); } catch { pose.landmarker = await make('CPU'); }
+    } catch (err) {
+      console.error(err);
+      goMenu(); camError('Body tracking could not load. Check your internet connection and try again, or play with keys.');
+      return;
+    }
+  }
+  if (game.state === 'setup') setSetup('Step back so I can see you', 'Your head, shoulders and hips need to be in the picture.');
+}
+function stopCamera() {
+  if (pose.stream) pose.stream.getTracks().forEach(t => t.stop());
+  pose.stream = null; video.srcObject = null; pose.f = null; pose.base = null;
+}
+function setSetup(title, msg) { $('setupTitle').textContent = title; $('setupMsg').textContent = msg; }
+
+const LINKS = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28]];
+function readPose(now) {
+  if (!pose.landmarker || !pose.stream || video.readyState < 2) return;
+  if (video.currentTime === pose.lastVideoTime) return;
+  pose.lastVideoTime = video.currentTime;
+  let res;
+  try { res = pose.landmarker.detectForVideo(video, now); } catch (e) { console.warn(e); return; }
+  const lm = res && res.landmarks && res.landmarks[0];
+  pose.raw = lm || null;
+  if (!lm) { pose.f = null; return; }
+  const A = pose.aspect;
+  const P = i => ({ x: (1 - lm[i].x) * A, y: lm[i].y, v: lm[i].visibility ?? 1 });
+  const ls = P(11), rs = P(12), nose = P(0), lw = P(15), rw = P(16), lh = P(23), rh = P(24);
+  if (ls.v < 0.5 || rs.v < 0.5) { pose.f = null; return; }
+  const sx = (ls.x + rs.x) / 2, sy = (ls.y + rs.y) / 2;
+  const sw = Math.max(0.03, Math.hypot(ls.x - rs.x, ls.y - rs.y));
+  const hipsOk = lh.v > 0.5 && rh.v > 0.5;
+  const bodyX = hipsOk ? (sx + (lh.x + rh.x) / 2) / 2 : sx;
+  pose.cx = pose.cx == null ? bodyX : pose.cx + (bodyX - pose.cx) * 0.55;
+  const handsUp = lw.v > 0.5 && rw.v > 0.5 && lw.y < nose.y - 0.02 && rw.y < nose.y - 0.02;
+  pose.f = { cx: pose.cx, sy, sw, handsUp };
+  pose.lastSeen = now;
+}
+
+function handsHeld(now) {
+  if (pose.f && pose.f.handsUp) { if (!pose.handsSince) pose.handsSince = now; return now - pose.handsSince > 600; }
+  pose.handsSince = 0; return false;
+}
+function beginCountdown(now) {
+  game.state = 'countdown'; pose.countStart = now; pose.samples = []; pose.lastCount = 0; pose.handsSince = 0;
+  show('overScreen', false); show('setupBanner', true);
+  $('cam').classList.add('big'); show('hud', false);
+  resetRun(); game.speed = 9;
+}
+
+function poseFlow(now) {
+  const f = pose.f;
+  if (game.state === 'setup') {
+    if (!pose.landmarker) return;
+    if (!f) setSetup('Step back so I can see you', 'Your head, shoulders and hips need to be in the picture.');
+    else {
+      setSetup('Got you! Raise both hands to start', 'Stand in the middle of the room, facing the screen.');
+      if (handsHeld(now)) beginCountdown(now);
+    }
+  } else if (game.state === 'countdown') {
+    const el = now - pose.countStart;
+    const n = 3 - Math.floor(el / 1000);
+    if (!f) {
+      if (now - pose.lastSeen > 800) { setSetup('Lost you', 'Step back into view.'); pose.countStart = now; pose.samples = []; pose.lastCount = 0; bigText(''); }
+      return;
+    }
+    setSetup('Hands down, stand still in the middle', 'Measuring your neutral position…');
+    if (n !== pose.lastCount && n > 0) { pose.lastCount = n; bigText(String(n)); sfx.tick(); }
+    if (el > 1500 && !f.handsUp) pose.samples.push({ ...f });
+    if (el >= 3000) {
+      if (pose.samples.length < 3) { pose.countStart = now; pose.samples = []; pose.lastCount = 0; return; }
+      const avg = k => pose.samples.reduce((s, v) => s + v[k], 0) / pose.samples.length;
+      pose.base = { x: avg('cx'), y: avg('sy'), sw: avg('sw') };
+      startRun();
+    }
+  } else if (game.state === 'over') {
+    if (handsHeld(now)) beginCountdown(now);
+  } else if (game.state === 'play') {
+    if (!f) {
+      if (!game.paused && now - pose.lastSeen > 1200) { setPaused(true, 'Where did you go?', 'Step back into the camera view to keep running.'); pose.lostSince = now; }
+      pose.resumeSince = 0;
+      return;
+    }
+    if (game.paused && pose.lostSince) {
+      if (!pose.resumeSince) pose.resumeSince = now;
+      if (now - pose.resumeSince > 900) { pose.lostSince = 0; setPaused(false); toast('GO!'); }
+      return;
+    }
+    if (!game.paused) controlFromPose(f, now);
+  }
+}
+
+function thresholds() {
+  const s = pose.sens;
+  return { laneIn: 0.75 / s, laneOut: 0.45 / s, jump: 0.3 / s, jumpRe: 0.12, duck: 0.55 / s, duckRe: 0.28, duckHold: 0.4 / s };
+}
+function controlFromPose(f, now) {
+  const b = pose.base; if (!b) return;
+  const T = thresholds();
+  const dx = (f.cx - b.x) / b.sw;
+  const dy = (b.y - f.sy) / b.sw; // + when higher than neutral
+  let lane = pose.lane;
+  if (lane === 1) { if (dx < -T.laneIn) lane = 0; else if (dx > T.laneIn) lane = 2; }
+  else if (lane === 0) { if (dx > -T.laneOut) lane = dx > T.laneIn ? 2 : 1; }
+  else { if (dx < T.laneOut) lane = dx < -T.laneIn ? 0 : 1; }
+  if (lane !== pose.lane) { pose.lane = lane; pose.laneStumbled = false; }
+  if (pose.lane !== player.lane) {
+    const ok = moveLane(Math.sign(pose.lane - player.lane), pose.laneStumbled);
+    if (!ok) pose.laneStumbled = true;
+  }
+  if (pose.armJ && dy > T.jump) { jump(); pose.armJ = false; flash('JUMP'); }
+  if (!pose.armJ && dy < T.jumpRe) pose.armJ = true;
+  if (pose.armD && dy < -T.duck) { duck(); pose.armD = false; flash('DUCK'); }
+  if (!pose.armD && dy > -T.duckRe) pose.armD = true;
+  player.holdDuck = dy < -T.duckHold;
+  // re-learn the neutral height and size whenever the player holds still (they may drift or step closer)
+  const hist = pose.hist || (pose.hist = []);
+  hist.push({ t: now, sy: f.sy, sw: f.sw });
+  while (hist.length && now - hist[0].t > 1400) hist.shift();
+  if (hist.length >= 4 && now - hist[0].t > 1100) {
+    let lo = Infinity, hi = -Infinity, my = 0, ms = 0;
+    for (const h of hist) { lo = Math.min(lo, h.sy); hi = Math.max(hi, h.sy); my += h.sy; ms += h.sw; }
+    my /= hist.length; ms /= hist.length;
+    if (hi - lo < 0.12 * b.sw && player.grounded) { b.y += (my - b.y) * 0.08; b.sw += (ms - b.sw) * 0.05; }
+  }
+}
+function flash(t) { pose.flash = t; pose.flashT = performance.now(); }
+function recenter() {
+  if (pose.f && pose.base) { pose.base.x = pose.f.cx; pose.base.y = pose.f.sy; pose.base.sw = pose.f.sw; pose.lane = 1; toast('Centered'); }
+}
+
+function drawOverlay() {
+  const box = overlay.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(box.width * dpr), H = Math.round(box.height * dpr);
+  if (overlay.width !== W || overlay.height !== H) { overlay.width = W; overlay.height = H; }
+  octx.clearRect(0, 0, W, H);
+  if (!pose.stream) return;
+  const A = pose.aspect;
+  const toX = x => (x / A) * W, toY = y => y * H;
+  const b = pose.base, T = thresholds();
+  let tag = 'Camera';
+  if (b && (game.state === 'play' || game.state === 'over')) {
+    octx.lineWidth = 2 * dpr; octx.setLineDash([8 * dpr, 6 * dpr]);
+    octx.strokeStyle = 'rgba(255,255,255,.75)';
+    for (const s of [-1, 1]) { const x = toX(b.x + s * T.laneIn * b.sw); octx.beginPath(); octx.moveTo(x, 0); octx.lineTo(x, H); octx.stroke(); }
+    octx.strokeStyle = 'rgba(24,198,232,.9)';
+    let y = toY(b.y - T.jump * b.sw); octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke();
+    octx.strokeStyle = 'rgba(255,90,60,.9)';
+    y = toY(b.y + T.duck * b.sw); octx.beginPath(); octx.moveTo(0, y); octx.lineTo(W, y); octx.stroke();
+    octx.setLineDash([]);
+    tag = ['Left', 'Middle', 'Right'][pose.lane];
+  }
+  const lm = pose.raw;
+  if (lm) {
+    octx.lineWidth = 4 * dpr; octx.lineCap = 'round'; octx.strokeStyle = '#ffc21a';
+    for (const [a, c] of LINKS) {
+      if ((lm[a].visibility ?? 1) < 0.4 || (lm[c].visibility ?? 1) < 0.4) continue;
+      octx.beginPath(); octx.moveTo((1 - lm[a].x) * W, lm[a].y * H); octx.lineTo((1 - lm[c].x) * W, lm[c].y * H); octx.stroke();
+    }
+    octx.fillStyle = '#ff3d7f';
+    for (const i of [0, 11, 12, 15, 16, 23, 24]) { if ((lm[i].visibility ?? 1) < 0.4) continue; octx.beginPath(); octx.arc((1 - lm[i].x) * W, lm[i].y * H, 5 * dpr, 0, 7); octx.fill(); }
+  }
+  if (pose.f) {
+    octx.fillStyle = '#18c6e8'; octx.beginPath(); octx.arc(toX(pose.f.cx), toY(pose.f.sy), 9 * dpr, 0, 7); octx.fill();
+  }
+  if (performance.now() - pose.flashT < 500) tag = pose.flash + '!';
+  if (!pose.landmarker) tag = 'Loading…'; else if (!pose.f) tag = 'Can’t see you';
+  $('camTag').textContent = tag;
+}
+
+// ---------------------------------------------------------------- input
+$('camBtn').addEventListener('click', () => { audioOn(); startCamera(); });
+$('keysBtn').addEventListener('click', () => { audioOn(); game.mode = 'keys'; startRun(); });
+$('setupBack').addEventListener('click', goMenu);
+$('againBtn').addEventListener('click', () => { audioOn(); if (game.mode === 'camera' && pose.stream) beginCountdown(performance.now()); else startRun(); });
+$('menuBtn').addEventListener('click', goMenu);
+$('pauseMenuBtn').addEventListener('click', goMenu);
+$('resumeBtn').addEventListener('click', () => { pose.lostSince = 0; setPaused(false); });
+$('pauseBtn').addEventListener('click', () => setPaused(!game.paused));
+$('recenterBtn').addEventListener('click', recenter);
+$('muteBtn').addEventListener('click', () => { muted = !muted; store.set('rr-muted', muted); setMuteLabel(); audioOn(); });
+
+window.addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(k)) e.preventDefault();
+  if (game.state === 'play') {
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') moveLane(-1);
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') moveLane(1);
+    else if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === ' ') jump();
+    else if (k === 'ArrowDown' || k === 's' || k === 'S') duck();
+    else if (k === 'p' || k === 'P' || k === 'Escape') setPaused(!game.paused);
+    else if (k === 'c' || k === 'C') recenter();
+  } else if (k === 'Enter') {
+    if (game.state === 'over') $('againBtn').click();
+    else if (game.state === 'menu') $('keysBtn').click();
+  }
+});
+let touch = null;
+canvas.addEventListener('touchstart', e => { const t = e.changedTouches[0]; touch = { x: t.clientX, y: t.clientY }; }, { passive: true });
+canvas.addEventListener('touchend', e => {
+  if (!touch) return;
+  const t = e.changedTouches[0], dx = t.clientX - touch.x, dy = t.clientY - touch.y; touch = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 30) return;
+  if (Math.abs(dx) > Math.abs(dy)) moveLane(dx > 0 ? 1 : -1); else if (dy < 0) jump(); else duck();
+}, { passive: true });
+document.addEventListener('visibilitychange', () => { if (document.hidden && game.state === 'play' && !game.paused) setPaused(true); });
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.fov = w / h < 0.8 ? 75 : 62;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------------------------------------------------------------- main loop
+resetRun(); game.speed = 9;
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (game.mode === 'camera' && pose.stream) { readPose(now); poseFlow(now); drawOverlay(); }
+
+  if (game.state === 'play' && !game.paused) {
+    game.t += dt;
+    game.speed = 13 + 17 * (1 - Math.exp(-game.t / 100));
+    const n = Math.ceil(dt / (1 / 120)), h = dt / n;
+    const before = game.P;
+    for (let i = 0; i < n && game.state === 'play'; i++) step(h);
+    spawn();
+    scrollScenery(game.P - before);
+    updateEntities(); updateCoins(dt);
+    animateRunner(dt, true);
+    updateHud();
+  } else if (game.state === 'dead') {
+    game.deadT += dt;
+    animateRunner(dt, false);
+    player.y = Math.max(player.ground, player.y - dt * 4);
+    if (game.deadT > 1.1) showGameOver();
+  } else if (game.state === 'menu' || game.state === 'setup' || game.state === 'countdown') {
+    const d = game.speed * dt; game.P += d; scrollScenery(d);
+    if (game.state === 'countdown' && now - pose.countStart > 3000) bigText('');
+    animateRunner(dt, true);
+  } else {
+    animateRunner(dt, false);
+  }
+  if (game.state === 'countdown' && pose.lastCount === 0) bigText('');
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(frame);
+
+// test hook
+window.__rr = { game, player, pose, startRun, moveLane, jump, duck, beginCountdown };
+window.__ents = () => entities;
+</script>
+</body>
+</html>
