@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1430">
+<title>Rail Rush Controller</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@400;600;800&display=swap">
+<style>
+  :root {
+    --ink: #0f1430;
+    --panel: rgba(255,255,255,.06);
+    --paper: #ffffff;
+    --muted: #b9c2ea;
+    --pink: #ff3d7f;
+    --cyan: #18c6e8;
+    --gold: #ffc21a;
+    --green: #3ddc84;
+    --danger: #ff5a3c;
+    --display: "Bungee", "Impact", "Arial Black", system-ui, sans-serif;
+    --body: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--ink); color: var(--paper); font-family: var(--body); -webkit-text-size-adjust: 100%; }
+  body { min-height: 100dvh; }
+  [hidden] { display: none !important; }
+  main {
+    max-width: 480px; margin: 0 auto; display: grid; gap: 14px;
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 24px) max(16px, env(safe-area-inset-left, 0px));
+  }
+  .logo { margin: 0; font-family: var(--display); font-weight: 400; font-size: 30px; line-height: 1; }
+  .logo span { color: var(--gold); }
+  .logo small { display: block; margin-top: 6px; font: 800 12px var(--body); letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  .card { background: var(--panel); border: 2px solid rgba(255,255,255,.1); border-radius: 20px; padding: 16px; display: grid; gap: 12px; }
+  .status { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; }
+  .status .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--muted); grid-row: span 2; }
+  .status[data-s="ok"] .dot { background: var(--green); box-shadow: 0 0 12px var(--green); }
+  .status[data-s="wait"] .dot { background: var(--cyan); animation: blink 1.2s ease-in-out infinite; }
+  .status[data-s="warn"] .dot { background: var(--gold); }
+  .status[data-s="bad"] .dot { background: var(--danger); }
+  @keyframes blink { 50% { opacity: .3; } }
+  .status b { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.1; }
+  .status span { color: var(--muted); font-size: 15px; line-height: 1.4; }
+  .btn {
+    font: 800 18px var(--body); color: var(--ink); background: var(--gold); border: 0; border-radius: 16px;
+    padding: 16px 18px; cursor: pointer; box-shadow: 0 5px 0 #b37f00; width: 100%; touch-action: manipulation;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b37f00; }
+  .btn.alt { background: rgba(255,255,255,.12); color: var(--paper); box-shadow: 0 5px 0 rgba(0,0,0,.35); }
+  .btn:disabled { opacity: .45; }
+  .btn:focus-visible, input:focus-visible, .switch input:focus-visible + .track { outline: 3px solid var(--cyan); outline-offset: 2px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .code-in { font: 400 28px var(--display); letter-spacing: .14em; text-transform: uppercase; text-align: center; width: 100%; padding: 12px; border-radius: 14px; border: 2px solid rgba(255,255,255,.2); background: rgba(0,0,0,.25); color: var(--gold); }
+  .room { font-family: var(--display); color: var(--gold); letter-spacing: .1em; }
+  .note { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .err { margin: 0; color: #ffd0c6; background: rgba(255,90,60,.16); border: 1px solid rgba(255,90,60,.5); padding: 10px 12px; border-radius: 12px; font-size: 15px; line-height: 1.45; }
+
+  /* live meter */
+  .meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .meter-head h2 { margin: 0; font: 800 13px var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .meter-head output { font-family: var(--display); font-size: 18px; font-variant-numeric: tabular-nums; }
+  canvas.meter { width: 100%; height: 170px; display: block; border-radius: 12px; background: rgba(0,0,0,.3); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+  .legend i { display: inline-block; width: 16px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .flash { font-family: var(--display); font-size: 44px; text-align: center; min-height: 52px; line-height: 52px; color: var(--gold); }
+  .flash.duck { color: var(--pink); }
+
+  .field { display: grid; gap: 8px; font-size: 15px; color: var(--muted); }
+  .field-row { display: flex; justify-content: space-between; gap: 12px; }
+  .field-row b { color: var(--paper); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--pink); height: 32px; }
+  .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; }
+  .switch .track { width: 56px; height: 32px; border-radius: 16px; background: rgba(255,255,255,.2); position: relative; flex: none; transition: background .15s; }
+  .switch .track::after { content: ""; position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .switch input:checked + .track { background: var(--cyan); }
+  .switch input:checked + .track::after { transform: translateX(24px); }
+  details summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+  details ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+
+  /* pocket view: black (saves battery), huge text, needs a long press to leave */
+  .pocket {
+    position: fixed; inset: 0; z-index: 10; background: #000; display: grid; grid-template-rows: 1fr auto; text-align: center;
+    padding: calc(env(safe-area-inset-top, 0px) + 24px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  }
+  .pocket .mid { display: grid; align-content: center; gap: 16px; }
+  .pocket .big { font-family: var(--display); font-size: clamp(34px, 11vw, 56px); line-height: 1.05; }
+  .pocket .sub { color: var(--muted); font-size: 18px; line-height: 1.45; }
+  .pocket .flash { font-size: clamp(56px, 20vw, 110px); min-height: 1.1em; line-height: 1.1; }
+  .pocket[data-s="ok"] .big { color: var(--green); }
+  .pocket[data-s="bad"] .big { color: var(--danger); }
+  .pocket[data-s="calib"] .big { color: var(--gold); }
+  .hold { position: relative; overflow: hidden; font: 800 16px var(--body); color: var(--muted); background: rgba(255,255,255,.08); border: 0; border-radius: 16px; padding: 16px; width: 100%; touch-action: none; -webkit-user-select: none; user-select: none; }
+  .hold i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(24,198,232,.35); }
+  @media (prefers-reduced-motion: reduce) { .status .dot { animation: none !important; } }
+</style>
+<script src="motion.js"></script>
+<script src="pair.js"></script>
+</head>
+<body>
+<main>
+  <h1 class="logo">Rail <span>Rush</span><small>Pocket controller</small></h1>
+
+  <section class="card">
+    <div class="status" id="status" data-s="wait" role="status">
+      <span class="dot"></span><b id="statusTitle">Starting…</b><span id="statusSub"></span>
+    </div>
+    <div id="codeBox" hidden>
+      <label class="note" for="codeIn">Type the code shown on the game screen:</label>
+      <div class="row" style="margin-top:8px">
+        <input class="code-in" id="codeIn" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="8" placeholder="ABCDE">
+      </div>
+      <button class="btn" id="codeBtn" type="button" style="margin-top:10px">Connect</button>
+    </div>
+    <button class="btn" id="startBtn" type="button">Start motion</button>
+    <p class="err" id="err" hidden></p>
+    <button class="btn" id="pocketBtn" type="button" hidden>Ready: put the phone in my pocket</button>
+  </section>
+
+  <section class="card" id="liveCard" hidden>
+    <div class="meter-head"><h2>Live movement</h2><output id="vOut">0.0 m/s</output></div>
+    <canvas class="meter" id="meter" aria-label="Live chart of up and down movement with jump and duck lines"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--gold)"></i>Up/down speed</span>
+      <span><i style="background:var(--cyan)"></i>Up/down push (g)</span>
+      <span><i style="background:var(--gold);opacity:.6"></i>Jump line</span>
+      <span><i style="background:var(--pink);opacity:.8"></i>Duck line</span>
+    </div>
+    <div class="flash" id="flash" aria-live="assertive"></div>
+    <label class="switch"><span class="lbl">Test mode<small class="note" style="display:block;font-weight:400">Moves show here only, not in the game</small></span><input type="checkbox" id="testMode"><span class="track"></span></label>
+    <label class="field" for="sens">
+      <span class="field-row"><span>Sensitivity</span><b id="sensLabel">Normal</b></span>
+      <input id="sens" type="range" min="1" max="5" step="1" value="3">
+    </label>
+    <button class="btn alt" id="calibBtn" type="button">Move check: jump twice, duck twice</button>
+    <p class="note" id="calibNote"></p>
+  </section>
+
+  <details class="card">
+    <summary>Tips</summary>
+    <ul>
+      <li>A snug front trouser pocket works best. Any way up is fine.</li>
+      <li>Don't lock the phone: just put it in your pocket. The screen stays on while this page is open (or set Auto-Lock to Never).</li>
+      <li>Jump: a normal hop. Duck: bend your knees and drop at least a hand's width, then stand up.</li>
+      <li>On the game, the camera still does left and right.</li>
+      <li>Moves fire twice or not at all? Run the move check, then nudge Sensitivity.</li>
+    </ul>
+  </details>
+</main>
+
+<div class="pocket" id="pocket" data-s="ok" hidden>
+  <div class="mid">
+    <div class="big" id="pTitle">In pocket, ready</div>
+    <div class="sub" id="pSub">Jump and duck. The game sees it.</div>
+    <div class="flash" id="pFlash" aria-live="assertive"></div>
+  </div>
+  <button class="hold" id="holdBtn" type="button"><i id="holdBar"></i>Hold to unlock</button>
+</div>
+
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+const SENS_NAMES = ['Low', 'Relaxed', 'Normal', 'High', 'Max'];
+const params = new URLSearchParams(location.search);
+let room = RRPair.cleanCode(params.get('room') || store.get('rr-phone-room', ''));
+
+// ---------------------------------------------------------------- motion
+const sensIdx = store.get('rr-phone-sens', 3);
+const det = RRMotion.createDetector({ prof: store.get('rr-phone-prof', null) || undefined, sens: RRMotion.SENS[sensIdx - 1] || 1 });
+const app = { motion: false, lastSample: 0, test: false, pocket: false, calib: null, seq: 0, flashT: 0, gameState: '', noteUntil: 0 };
+const hist = [];                 // [t, av, v] for the meter
+
+function onMotion(e, tTest) {
+  const t = tTest !== undefined ? tTest : e.timeStamp || performance.now();
+  if (app.lastSample && performance.now() - app.lastSample > 500) det.reset();   // resumed after a pause
+  app.lastSample = performance.now();
+  const s = RRMotion.fromEvent(e, t);
+  if (app.calib) app.calib.feed(s);
+  const evs = det.push(s);
+  hist.push([t, det.av, det.v]);
+  while (hist.length && t - hist[0][0] > 4000) hist.shift();
+  if (link.debug && (app.seq++ % 3 === 0)) send({ t: 'tel', av: +det.av.toFixed(2), v: +det.v.toFixed(2) });
+  for (const ev of evs) onMove(ev);
+}
+let moveId = Math.floor(Math.random() * 1e6);
+function onMove(ev) {
+  if (app.calib) return;                         // the move check listens on its own
+  if (ev.type === 'jump' || ev.type === 'duck') showFlash(ev.type);
+  if (isReady()) send({ t: ev.type, id: ++moveId, ts: Date.now(), src: ev.src });
+}
+function showFlash(type) {
+  for (const el of [$('flash'), $('pFlash')]) { el.textContent = type === 'jump' ? 'JUMP!' : 'DUCK!'; el.classList.toggle('duck', type === 'duck'); }
+  app.flashT = performance.now();
+}
+function isReady() { return app.motion && !app.test && !app.calib && performance.now() - app.lastSample < 1000; }
+function phoneStatus() { return app.calib ? 'calib' : !app.motion ? 'idle' : app.test ? 'test' : app.pocket ? 'pocket' : 'ready'; }
+
+async function startMotion() {
+  showErr('');
+  if (typeof DeviceMotionEvent === 'undefined') { showErr('This device has no motion sensors. Open this page on your phone.'); return; }
+  if (!window.isSecureContext) { showErr('Motion sensors need an https:// link. Open the controller from the QR code on the game screen.'); return; }
+  try {
+    if (typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();   // iPhone: must come from a tap
+      if (r !== 'granted') {
+        showErr('Motion access was blocked. Close this tab, scan the code again and tap Allow. (If Safari stops asking: Settings › Apps › Safari › Advanced › Website Data, remove raw.githack.com.)');
+        return;
+      }
+    }
+  } catch (err) { showErr('Couldn’t turn on motion sensors: ' + (err && err.message || err)); return; }
+  if (!app.motion) window.addEventListener('devicemotion', onMotion);
+  app.motion = true;
+  sayUnlock();
+  keepAwake();
+  $('startBtn').hidden = true; $('liveCard').hidden = false; $('pocketBtn').hidden = false;
+  setTimeout(() => { if (!app.lastSample) showErr('No motion data is arriving. This browser may not share the motion sensors.'); }, 1500);
+  render(); sendState();
+}
+
+// ---------------------------------------------------------------- link to the game
+const link = { peer: null, conn: null, state: 'idle', msg: '', retry: 0, timer: 0, debug: false, rtt: 0 };
+function send(m) { try { if (link.conn && link.conn.open) link.conn.send(m); } catch {} }
+function sendState() { send({ t: 'state', ready: isReady(), status: phoneStatus() }); }
+async function connect() {
+  clearTimeout(link.timer);
+  if (!room) { link.state = 'nocode'; render(); return; }
+  store.set('rr-phone-room', room);
+  link.state = 'connecting'; render();
+  let Peer;
+  try { Peer = await RRPair.loadPeer(); }
+  catch { link.state = 'error'; link.msg = 'Couldn’t load the connection library. Check the phone’s internet.'; render(); retryLater(); return; }
+  if (!link.peer || link.peer.destroyed) {
+    const peer = new Peer(RRPair.peerOptions());
+    link.peer = peer;
+    peer.on('open', () => { if (link.peer === peer) openConn(); });
+    peer.on('disconnected', () => { if (link.peer === peer && !peer.destroyed) retryLater(); });
+    peer.on('error', err => {
+      if (link.peer !== peer) return;
+      if (err.type === 'peer-unavailable') { link.state = 'nogame'; render(); retryLater(); }
+      else if (RRPair.NET_ERRORS.includes(err.type)) {
+        if (!(link.conn && link.conn.open)) { link.state = 'error'; link.msg = 'Can’t reach the pairing server. Check the phone’s internet (Wi-Fi or mobile data).'; render(); }
+        retryLater();
+      } else if (err.type === 'browser-incompatible') { link.state = 'error'; link.msg = 'This browser can’t do WebRTC. Use Safari or Chrome.'; render(); }
+      else console.warn(err);
+    });
+  } else if (link.peer.open) openConn();
+  else if (link.peer.disconnected) { try { link.peer.reconnect(); } catch { link.peer.destroy(); link.peer = null; retryLater(); } }
+}
+function openConn() {
+  if (link.conn && link.conn.open) return;
+  if (link.conn) { try { link.conn.close(); } catch {} }
+  const c = link.peer.connect(RRPair.idFor(room), { serialization: 'json', reliable: true });
+  link.conn = c;
+  const giveUp = setTimeout(() => { if (link.conn === c && !c.open) { try { c.close(); } catch {} link.conn = null; retryLater(); } }, 8000);
+  c.on('open', () => {
+    clearTimeout(giveUp);
+    if (link.conn !== c) return;
+    link.retry = 0; link.state = 'connected'; render();
+    send({ t: 'hello', ready: isReady(), status: phoneStatus(), ua: navigator.platform || '' });
+  });
+  c.on('data', m => { if (link.conn === c) onData(m); });
+  c.on('close', () => { if (link.conn !== c) return; link.conn = null; link.state = 'lost'; render(); retryLater(); });
+  c.on('error', e => console.warn('link', e));
+}
+function retryLater() {
+  clearTimeout(link.timer);
+  const wait = [1000, 2000, 3000, 5000][Math.min(link.retry++, 3)];
+  link.timer = setTimeout(() => {
+    if (link.conn && link.conn.open) return;
+    const p = link.peer;
+    if (p && !p.destroyed && p.disconnected) { try { p.reconnect(); return; } catch {} }
+    if (p && (p.destroyed || !p.open)) { try { p.destroy(); } catch {} link.peer = null; }
+    connect();
+  }, wait);
+}
+function onData(m) {
+  if (!m || typeof m !== 'object') return;
+  if (m.t === 'ping') send({ t: 'pong', ts: m.ts });
+  else if (m.t === 'game') { app.gameState = String(m.state || ''); render(); }
+  else if (m.t === 'debug') link.debug = !!m.on;
+}
+setInterval(() => { send({ t: 'hb', ready: isReady(), status: phoneStatus() }); render(); }, 1000);
+
+// ---------------------------------------------------------------- screen
+function showErr(msg) { $('err').textContent = msg; $('err').hidden = !msg; }
+function render() {
+  let s = 'wait', title = 'Connecting…', sub = '';
+  const conn = link.conn && link.conn.open;
+  if (link.state === 'nocode') { s = 'warn'; title = 'Enter the game code'; sub = 'It’s on the game screen under “Pocket controller”.'; }
+  else if (conn) {
+    if (!app.motion) { s = 'warn'; title = 'Connected'; sub = 'Now tap Start motion.'; }
+    else if (performance.now() - app.lastSample > 1000) { s = 'bad'; title = 'No motion data'; sub = 'Keep this page open with the screen on.'; }
+    else if (app.test) { s = 'warn'; title = 'Test mode'; sub = 'Moves show here only. Turn test mode off to play.'; }
+    else { s = 'ok'; title = 'Connected'; sub = gameLine(); }
+  }
+  else if (link.state === 'nogame') { s = 'wait'; title = 'Looking for the game…'; sub = `No game with code ${room} yet. Is “Add pocket controller” open on the game screen?`; }
+  else if (link.state === 'lost') { s = 'wait'; title = 'Reconnecting…'; sub = 'Lost the game for a moment.'; }
+  else if (link.state === 'error') { s = 'bad'; title = 'Can’t connect'; sub = link.msg + ' Retrying…'; }
+  else { sub = room ? `Game code ${room}` : ''; }
+  $('status').dataset.s = s; $('statusTitle').textContent = title; $('statusSub').textContent = sub;
+  $('codeBox').hidden = link.state !== 'nocode';
+  // pocket view
+  if (!app.calib && performance.now() > app.noteUntil) {
+    const p = $('pocket');
+    const ok = conn && isReady();
+    p.dataset.s = ok ? 'ok' : 'bad';
+    $('pTitle').textContent = ok ? 'In pocket, ready' : !conn ? 'Game not connected' : app.test ? 'Test mode' : 'Not ready';
+    $('pSub').textContent = ok ? gameLine() : !conn ? 'Reconnecting… keep this screen on.' : 'Unlock and check the phone.';
+  }
+}
+function gameLine() {
+  return { play: 'Running! Jump and duck.', paused: 'Game paused.', over: 'Game over. Play again on the game screen.', calib: 'Game is doing its move check.', setup: 'Game is starting the camera.', menu: 'Game is on the menu. Press Play there.' }[app.gameState] || 'Jump and duck. The game sees it.';
+}
+
+// meter
+const meter = $('meter'), mg = meter.getContext('2d');
+function drawMeter() {
+  requestAnimationFrame(drawMeter);
+  if (app.flashT && performance.now() - app.flashT > 700) { app.flashT = 0; $('flash').textContent = ''; $('pFlash').textContent = ''; }
+  if ($('liveCard').hidden || app.pocket) return;
+  const dpr = Math.min(2, devicePixelRatio || 1), w = Math.round(meter.clientWidth * dpr), h = Math.round(meter.clientHeight * dpr);
+  if (meter.width !== w || meter.height !== h) { meter.width = w; meter.height = h; }
+  mg.clearRect(0, 0, w, h);
+  const T = det.thresholds(), now = hist.length ? hist[hist.length - 1][0] : 0;
+  const V = 3.5, y = v => h / 2 - (v / V) * (h / 2 - 6);            // ±3.5 m/s full scale; push in g on the same scale
+  mg.lineWidth = dpr; mg.strokeStyle = 'rgba(255,255,255,.15)';
+  mg.beginPath(); mg.moveTo(0, h / 2); mg.lineTo(w, h / 2); mg.stroke();
+  mg.setLineDash([8 * dpr, 6 * dpr]); mg.lineWidth = 2 * dpr;
+  mg.strokeStyle = 'rgba(255,194,26,.65)'; mg.beginPath(); mg.moveTo(0, y(T.vJump)); mg.lineTo(w, y(T.vJump)); mg.stroke();
+  mg.strokeStyle = 'rgba(255,61,127,.8)'; mg.beginPath(); mg.moveTo(0, y(-T.vDuck)); mg.lineTo(w, y(-T.vDuck)); mg.stroke();
+  mg.setLineDash([]);
+  mg.font = `800 ${11 * dpr}px Rubik, sans-serif`; mg.fillStyle = 'rgba(255,194,26,.9)'; mg.fillText('JUMP', 6 * dpr, y(T.vJump) - 5 * dpr);
+  mg.fillStyle = 'rgba(255,61,127,.95)'; mg.fillText('DUCK', 6 * dpr, y(-T.vDuck) + 14 * dpr);
+  const x = t => w - ((now - t) / 4000) * w;
+  const trace = (i, col, lw, scale) => {
+    mg.strokeStyle = col; mg.lineWidth = lw * dpr; mg.beginPath();
+    hist.forEach((p, k) => { const px = x(p[0]), py = y(Math.max(-V, Math.min(V, p[i] * scale))); k ? mg.lineTo(px, py) : mg.moveTo(px, py); });
+    mg.stroke();
+  };
+  trace(1, 'rgba(24,198,232,.75)', 1.5, 1 / 9.81);   // push in g
+  trace(2, '#ffc21a', 3, 1);                          // speed in m/s
+  const v = hist.length ? hist[hist.length - 1][2] : 0;
+  $('vOut').textContent = `${v >= 0 ? '+' : ''}${v.toFixed(1)} m/s`;
+}
+requestAnimationFrame(drawMeter);
+
+// pocket view and its long-press unlock
+function enterPocket() { app.pocket = true; $('pocket').hidden = false; keepAwake(); render(); sendState(); }
+function leavePocket() { app.pocket = false; $('pocket').hidden = true; if (app.calib) stopCalib(false); render(); sendState(); }
+(() => {
+  const btn = $('holdBtn'), bar = $('holdBar'); let t0 = 0, raf = 0;
+  const tick = () => { const k = Math.min(1, (performance.now() - t0) / 900); bar.style.width = k * 100 + '%'; if (k >= 1) { end(); leavePocket(); } else raf = requestAnimationFrame(tick); };
+  const start = e => { e.preventDefault(); t0 = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick); };
+  const end = () => { cancelAnimationFrame(raf); bar.style.width = '0'; };
+  btn.addEventListener('pointerdown', start); btn.addEventListener('pointerup', end); btn.addEventListener('pointercancel', end); btn.addEventListener('pointerleave', end);
+  btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') leavePocket(); });
+})();
+
+// keep the screen on
+let wakeLock = null;
+async function keepAwake() {
+  if (wakeLock || !('wakeLock' in navigator)) return;
+  try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { if (app.motion) keepAwake(); det.reset(); if (!(link.conn && link.conn.open)) { link.retry = 0; connect(); } }
+  sendState();
+});
+
+// voice prompts (spoken, so the move check works with the phone in a pocket)
+let canSpeak = false;
+function sayUnlock() { if (canSpeak || !('speechSynthesis' in window)) return; try { speechSynthesis.speak(new SpeechSynthesisUtterance(' ')); canSpeak = true; } catch {} }
+function say(text, show = text) {
+  send({ t: 'say', text: show });
+  if (!canSpeak) return;
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate = 1.1; speechSynthesis.speak(u); } catch {}
+}
+
+// ---------------------------------------------------------------- move check
+const wait = ms => new Promise(r => setTimeout(r, ms));
+function stopCalib(done) { if (app.calib) { app.calib.cancelled = !done; app.calib = null; } det.reset(); render(); sendState(); }
+async function runCalib() {
+  if (!app.motion) return;
+  sayUnlock();
+  const c = RRMotion.createCalibrator();
+  const job = { c, cancelled: false, waiters: [] };
+  job.feed = s => { for (const got of c.push(s)) job.waiters.splice(0).forEach(w => w(got)); };
+  const waitMove = ms => new Promise(r => { const t = setTimeout(() => r(null), ms); job.waiters.push(g => { clearTimeout(t); r(g); }); });
+  app.calib = job; enterPocket(); sendState();
+  const p = $('pocket'); p.dataset.s = 'calib';
+  const show = (big, sub) => { $('pTitle').textContent = big; $('pSub').textContent = sub; };
+  show('Pocket now', 'Put the phone in your pocket. Listen for the prompts.');
+  say('Put the phone in your pocket.', 'Phone move check');
+  for (let n = 5; n > 0; n--) { if (job.cancelled) return; $('pFlash').textContent = n; await wait(1000); }
+  $('pFlash').textContent = '';
+  const steps = [['jump', 'Jump!', 'JUMP!'], ['jump', 'Jump again!', 'JUMP AGAIN!'], ['duck', 'Duck down low, then stand up.', 'DUCK!'], ['duck', 'Duck again.', 'DUCK AGAIN!']];
+  let i = 0;
+  while (i < steps.length) {
+    if (job.cancelled) return;
+    const [kind, words, big] = steps[i];
+    show(big, kind === 'jump' ? 'A normal hop.' : 'Bend your knees, drop low, then stand up.');
+    say(words, big);
+    const got = await waitMove(kind === 'jump' ? 7000 : 9000);
+    if (job.cancelled) return;
+    if (got === kind) { i++; $('pFlash').textContent = '✓'; await wait(900); $('pFlash').textContent = ''; }
+    else {
+      // missed it: try the same step once more, then move on
+      job.misses = (job.misses || 0) + 1;
+      if (job.misses > 2) { if (kind === 'jump') { c.phase = 'duck'; i = 2; } else break; job.misses = 0; }
+    }
+  }
+  const prof = c.profile();
+  store.set('rr-phone-prof', prof); det.setProfile(prof);
+  const m = prof.measured;
+  $('calibNote').textContent = `Move check saved: ${m.jumps.length} jumps (takeoff ${m.jumps.map(j => j.v.toFixed(1)).join(', ') || '–'} m/s), ${m.ducks.length} ducks. Jump line ${prof.vJump} m/s, duck line ${prof.vDuck} m/s.`;
+  stopCalib(true);
+  app.noteUntil = performance.now() + 3000;
+  $('pocket').dataset.s = 'ok';
+  show('All set!', 'Hold the button below to go back, or just start playing.');
+  say('All set.', 'Phone ready!');
+  setTimeout(render, 3100);
+}
+
+// ---------------------------------------------------------------- wiring
+$('startBtn').addEventListener('click', startMotion);
+$('pocketBtn').addEventListener('click', () => { sayUnlock(); enterPocket(); });
+$('calibBtn').addEventListener('click', runCalib);
+$('codeBtn').addEventListener('click', () => { room = RRPair.cleanCode($('codeIn').value); if (room.length >= 4) { link.retry = 0; connect(); } });
+$('codeIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('codeBtn').click(); });
+$('testMode').addEventListener('change', e => { app.test = e.target.checked; render(); sendState(); });
+{
+  const input = $('sens');
+  input.value = sensIdx; $('sensLabel').textContent = SENS_NAMES[sensIdx - 1];
+  input.addEventListener('input', e => { const v = +e.target.value; det.setSens(RRMotion.SENS[v - 1]); $('sensLabel').textContent = SENS_NAMES[v - 1]; store.set('rr-phone-sens', v); });
+}
+{
+  const p = store.get('rr-phone-prof', null);
+  if (p && p.measured) $('calibNote').textContent = `Using your move check (jump line ${p.vJump} m/s, duck line ${p.vDuck} m/s).`;
+  else $('calibNote').textContent = 'Using standard settings. A 20-second move check makes it fit you.';
+}
+if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission !== 'function') {
+  $('startBtn').textContent = 'Start motion';
+}
+render();
+connect();
+
+// test hooks
+window.__ctl = { app, det, link, onMotion, onMove, runCalib, startMotion, enterPocket };
+</script>
+</body>
+</html>

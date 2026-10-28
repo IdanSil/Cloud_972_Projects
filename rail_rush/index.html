@@ -176,9 +176,33 @@
   .stat span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .over-title { margin: 0; font-family: var(--display); font-weight: 400; font-size: clamp(36px, 9vw, 64px); color: var(--pink); line-height: 1; }
 
+  /* Pocket controller (phone) */
+  .ctl-card { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: rgba(255,255,255,.06); border: 2px solid rgba(24,198,232,.35); border-radius: 18px; padding: 14px; }
+  .ctl-qr { width: 168px; height: 168px; border-radius: 12px; background: #fff; display: block; image-rendering: pixelated; }
+  .ctl-info { display: grid; gap: 8px; min-width: 0; }
+  .ctl-info h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 18px; color: var(--cyan); }
+  .ctl-info p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
+  .ctl-info p b { color: var(--paper); font-weight: 600; }
+  .ctl-code { font-family: var(--display); font-size: 32px; letter-spacing: .14em; color: var(--gold); line-height: 1; }
+  .ctl-status { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--paper) !important; }
+  .ctl-status .dot, .phone-pill .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .ctl-status[data-s="ready"] .dot, .phone-pill[data-s="ready"] .dot { background: #3ddc84; box-shadow: 0 0 8px #3ddc84; }
+  .ctl-status[data-s="connected"] .dot, .phone-pill[data-s="connected"] .dot { background: var(--gold); }
+  .ctl-status[data-s="error"] .dot, .phone-pill[data-s="lost"] .dot { background: var(--danger); }
+  .ctl-status[data-s="waiting"] .dot, .ctl-status[data-s="starting"] .dot { background: var(--cyan); animation: blink 1.2s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .3; } }
+  .ctl-move { font-family: var(--display); color: var(--gold); min-height: 1.2em; font-size: 15px !important; }
+  .ctl-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .ctl-open { flex: 0 1 auto; }
+  @media (max-width: 460px) { .ctl-card { grid-template-columns: 1fr; justify-items: center; text-align: center; } .ctl-status { justify-content: center; } .ctl-row { justify-content: center; } }
+  .phone-pill { display: inline-flex; align-items: center; gap: 6px; }
+  .phone-line { color: var(--gold) !important; font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) { .ctl-status .dot { animation: none !important; } }
   @media (prefers-reduced-motion: reduce) { .coins.pop, .chip.bad, .pts.show { animation: none; } .fx-overlay { transition: none; } }
   @media (max-width: 600px) { .cam { width: 36vw; } }
 </style>
+<script src="pair.js"></script>
 <script type="importmap">
   { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
 </script>
@@ -195,6 +219,7 @@
   <div class="hud-right">
     <div class="coins" id="coinsBox"><span class="coin-dot"></span><span id="coins">0</span></div>
     <div class="tools">
+      <span class="icon-btn phone-pill" id="phonePill" hidden><span class="dot"></span><span id="phonePillText">Phone</span></span>
       <button class="icon-btn" id="recenterBtn" type="button" hidden>Recenter</button>
       <button class="icon-btn" id="muteBtn" type="button">Sound on</button>
       <button class="icon-btn" id="pauseBtn" type="button">Pause</button>
@@ -249,9 +274,25 @@
       <button class="btn" id="camBtn" type="button">Play with camera</button>
       <button class="btn alt" id="keysBtn" type="button">Play with keys / swipes</button>
     </div>
+    <button class="btn alt ctl-open" id="ctlBtn" type="button">Add pocket controller (phone)</button>
+    <div class="ctl-card" id="ctlCard" hidden>
+      <canvas class="ctl-qr" id="ctlQR" width="320" height="320" role="img" aria-label="QR code that opens the controller on your phone"></canvas>
+      <div class="ctl-info">
+        <h3>Pocket controller</h3>
+        <p>Scan with your phone's camera, or open <b id="ctlUrl">…</b> and type the code:</p>
+        <div class="ctl-code" id="ctlCode">·····</div>
+        <p class="ctl-status" id="ctlStatus" data-s="starting" role="status"><span class="dot"></span><span id="ctlStatusText">Starting…</span></p>
+        <p class="ctl-move" id="ctlMove" aria-live="polite"></p>
+        <p>The camera keeps left and right. The phone in your pocket does jump and duck, faster.</p>
+        <div class="ctl-row">
+          <button class="link-btn" id="ctlRetry" type="button" hidden>Try again</button>
+          <button class="link-btn" id="ctlOff" type="button">Turn off phone</button>
+        </div>
+      </div>
+    </div>
     <button class="link-btn" id="recalBtn" type="button" hidden>Redo my move check</button>
     <p class="err" id="camErr" hidden></p>
-    <p class="note">The first time, a 15-second move check learns how big your steps, jumps and ducks are. Video stays on your device. Keys: ← → switch, ↑ or space jump, ↓ roll. Touch: swipe.</p>
+    <p class="note">The first time, a 15-second move check learns how big your steps, jumps and ducks are. Video stays on your device. Keys: ← → switch, ↑ or space jump, ↓ roll. Touch: swipe. A phone in your pocket can do jump and duck (with the camera or with keys).</p>
   </div>
 </div>
 
@@ -260,6 +301,7 @@
   <div class="steps" id="setupSteps" hidden></div>
   <h2 id="setupTitle">Loading body tracking…</h2>
   <p id="setupMsg">This takes a few seconds the first time.</p>
+  <p class="phone-line" id="setupPhone" hidden>Phone ready: jumps and ducks come from your pocket.</p>
   <div class="actions">
     <button class="btn alt" id="skipBtn" type="button" hidden>Skip move check</button>
     <button class="btn alt" id="setupBack" type="button">Back to menu</button>
@@ -1145,7 +1187,7 @@ setMuteLabel();
 })();
 
 function goMenu() {
-  game.state = 'menu'; game.paused = false;
+  game.state = 'menu'; game.paused = false; ctlRender();
   stopCamera();
   clearWorld(); resetRun(); game.speed = 9;
   ['hud', 'overScreen', 'pauseScreen', 'setupBanner', 'cam'].forEach(id => show(id, false));
@@ -1160,7 +1202,7 @@ function startRun() {
   $('recenterBtn').hidden = game.mode !== 'camera';
   $('cam').classList.remove('big');
   bigText(''); toast('GO!'); sfx.go();
-  resetPoseControl();
+  resetPoseControl(); ctlRender();
 }
 const CAUSES = { crash: 'Crashed!', caught: 'Caught!' };
 function showGameOver() {
@@ -1252,7 +1294,7 @@ async function startCamera() {
   }
   game.mode = 'camera'; game.state = 'setup';
   show('startScreen', false); show('setupBanner', true); show('cam', true); $('cam').classList.add('big');
-  setSteps(-1); show('skipBtn', false);
+  setSteps(-1); show('skipBtn', false); ctlRender();
   setSetup('Starting camera…', 'Allow camera access when your browser asks.');
   try {
     pose.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 60 } }, audio: false });
@@ -1403,7 +1445,7 @@ function calibFlow(now, fresh) {
   const el = now - c.t0;
   if (c.phase === 'still') {
     if (f.armsUp) { setSetup('Hands down', 'Then stand still in the middle.'); c.t0 = now; c.samples = []; c.lastCount = 0; bigText(''); return; }
-    setSetup('Stand still in the middle', c.full ? 'Then a quick move check: left, right, jump, duck.' : 'Measuring your neutral position…');
+    setSetup('Stand still in the middle', c.full ? (ctlActive() ? 'Then a quick move check: left, right.' : 'Then a quick move check: left, right, jump, duck.') : 'Measuring your neutral position…');
     const n = 3 - Math.floor(el / 1000);
     if (n !== c.lastCount && n > 0) { c.lastCount = n; bigText(String(n)); sfx.tick(); }
     if (fresh && el > 1200) c.samples.push(f);
@@ -1429,7 +1471,10 @@ function calibFlow(now, fresh) {
   } else if (c.phase === 'center') {
     setSetup('Back to the middle', 'Stand where you started.');
     bigText('●');
-    if ((Math.abs(dx) < 0.3 && steady()) || el > 6000) calibNext('jump', now);
+    if ((Math.abs(dx) < 0.3 && steady()) || el > 6000) {
+      if (ctlActive()) { bigText(''); finishCalib(true); }   // the phone handles jump and duck
+      else calibNext('jump', now);
+    }
   } else if (c.phase === 'jump') {
     setSetup('Now JUMP!', 'A normal jump, like hopping over a barrier.');
     bigText('JUMP', true);
@@ -1527,12 +1572,17 @@ function controlFromPose(f, now) {
 
   const fastUp = dy > T.jumpMin && pose.v > T.jumpV && now - pose.lastLow > 450;
   const feetUp = lift !== null && lift > T.foot && dy > T.jumpMin;
-  if (pose.armJ && (dy > T.jumpH || fastUp || feetUp)) { jump(); pose.armJ = false; pose.lastJump = now; flash('JUMP'); }
-  if (!pose.armJ && dy < T.jumpH * 0.4 && pose.v < 0.3 && !(lift !== null && lift > T.foot * 0.5)) pose.armJ = true;
+  if (ctlActive()) {
+    // the pocket controller does jump and duck; keep the camera's triggers quiet so nothing fires twice
+    pose.armJ = false; pose.armD = false;
+  } else {
+    if (pose.armJ && (dy > T.jumpH || fastUp || feetUp)) { jump(); pose.armJ = false; pose.lastJump = now; flash('JUMP'); }
+    if (!pose.armJ && dy < T.jumpH * 0.4 && pose.v < 0.3 && !(lift !== null && lift > T.foot * 0.5)) pose.armJ = true;
 
-  if (pose.armD && drop > duckLine) { duck(); pose.armD = false; flash('DUCK'); }
-  if (!pose.armD && drop < T.duck * 0.5) pose.armD = true;
-  player.holdDuck = drop > T.duck * 0.7;
+    if (pose.armD && drop > duckLine) { duck(); pose.armD = false; flash('DUCK'); }
+    if (!pose.armD && drop < T.duck * 0.5) pose.armD = true;
+    player.holdDuck = drop > T.duck * 0.7;
+  }
 
   // re-learn standing height, size and floor whenever the player holds still (they drift or step closer)
   const hist = pose.hist;
@@ -1578,8 +1628,10 @@ function drawOverlay() {
     if (game.state !== 'calib') {
       line(toX(b.x - T.laneL * b.T), 0, toX(b.x - T.laneL * b.T), H, 'rgba(255,255,255,.75)');
       line(toX(b.x + T.laneR * b.T), 0, toX(b.x + T.laneR * b.T), H, 'rgba(255,255,255,.75)');
-      const jy = toY(b.cy - T.jumpH * b.T); line(0, jy, W, jy, 'rgba(24,198,232,.9)');
-      const dyy = toY(b.headY + T.duck * b.T); line(0, dyy, W, dyy, 'rgba(255,90,60,.9)');
+      if (!ctlActive()) {
+        const jy = toY(b.cy - T.jumpH * b.T); line(0, jy, W, jy, 'rgba(24,198,232,.9)');
+        const dyy = toY(b.headY + T.duck * b.T); line(0, dyy, W, dyy, 'rgba(255,90,60,.9)');
+      }
     }
     if (b.floorY !== null) { const fy = toY(b.floorY); line(0, fy, W, fy, 'rgba(125,255,176,.6)'); }
     octx.setLineDash([]);
@@ -1605,6 +1657,200 @@ function drawOverlay() {
   feet.hidden = !pose.f;
   if (pose.f) { feet.textContent = pose.f.anklesOk ? 'Feet ✓' : 'Feet not in view'; feet.classList.toggle('ok', pose.f.anklesOk); }
 }
+
+// =============================================================================================
+// Pocket controller: a phone in the player's pocket sends jump / duck over WebRTC (see pair.js,
+// controller.html, motion.js). Camera mode keeps track switching; keys mode keeps the arrow keys.
+// =============================================================================================
+const ctl = {
+  on: store.get('rr-ctl-on', false), code: store.get('rr-ctl-code', ''),
+  peer: null, conn: null, status: 'off', msg: '', ready: false, phoneStatus: '', lastMsg: 0,
+  seen: new Set(), lastMove: '', moveT: 0, holdUntil: 0, rtt: 0, retryT: 0, pingT: 0, sentState: '', staleShown: false,
+  debug: new URLSearchParams(location.search).has('debug'), tel: null,
+};
+const ctlFresh = () => performance.now() - ctl.lastMsg < 3000;
+function ctlActive() { return !!(ctl.conn && ctl.conn.open && ctl.ready && ctlFresh()); }
+function ctlSend(m) { try { if (ctl.conn && ctl.conn.open) ctl.conn.send(m); } catch {} }
+function ctlUrl() {
+  const u = new URL('controller.html', location.href);
+  u.search = ''; u.hash = '';
+  u.searchParams.set('room', ctl.code);
+  for (const [k, v] of Object.entries(window.RRPair ? RRPair.brokerParams() : {})) u.searchParams.set(k, v);
+  return u.href;
+}
+function ctlSet(status, msg = '') { ctl.status = status; ctl.msg = msg; ctlRender(); }
+function ctlRender() {
+  const open = !!(ctl.conn && ctl.conn.open);
+  let s = ctl.status, text = ctl.msg;
+  if (open) {
+    if (!ctlFresh()) { s = 'error'; text = 'Phone not responding. Is its screen still on?'; }
+    else if (ctl.ready) { s = 'ready'; text = 'Phone ready. Jump and duck with the phone in your pocket.'; }
+    else {
+      s = 'connected';
+      text = { test: 'Phone connected, in test mode (moves stay on the phone).', calib: 'Phone is doing its move check…', idle: 'Phone connected. Tap “Start motion” on the phone.' }[ctl.phoneStatus] || 'Phone connected.';
+    }
+  } else if (s === 'waiting' && !text) text = 'Waiting for your phone…';
+  const st = $('ctlStatus'); st.dataset.s = s; $('ctlStatusText').textContent = text;
+  $('ctlRetry').hidden = s !== 'error' || open;
+  // HUD pill and setup banner
+  const pill = $('phonePill');
+  pill.hidden = !ctl.on || game.state === 'menu';
+  const alive = open && ctlFresh();
+  pill.dataset.s = ctlActive() ? 'ready' : alive ? 'connected' : 'lost';
+  let ptxt = ctlActive() ? 'Phone' : alive ? 'Phone paused' : 'Phone lost';
+  if (ctl.debug && ctlActive()) ptxt += ` ${Math.round(ctl.rtt / 2)}ms` + (ctl.tel ? ` ${(ctl.tel.av / 9.81).toFixed(1)}g ${ctl.tel.v.toFixed(1)}m/s` : '');
+  $('phonePillText').textContent = ptxt;
+  $('setupPhone').hidden = !ctlActive();
+}
+async function ctlShowCode() {
+  $('ctlCode').textContent = ctl.code;
+  const url = ctlUrl();
+  $('ctlUrl').textContent = url.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+  const cv = $('ctlQR'), g = cv.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+  try {
+    const qrcode = await RRPair.loadQR();
+    const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+    const n = qr.getModuleCount(), cell = Math.floor(cv.width / (n + 4)), off = Math.floor((cv.width - cell * n) / 2);
+    g.fillStyle = '#0f1430';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect(off + c * cell, off + r * cell, cell, cell);
+  } catch {
+    g.fillStyle = '#0f1430'; g.font = '600 26px Rubik, sans-serif'; g.textAlign = 'center';
+    g.fillText('QR code didn’t load.', cv.width / 2, cv.height / 2 - 16); g.fillText('Type the code instead.', cv.width / 2, cv.height / 2 + 24);
+  }
+  if (location.protocol === 'file:') ctlSet('error', 'Open the game from an https:// link so your phone can open the controller too.');
+}
+function ctlOpenCard() {
+  ctl.on = true; store.set('rr-ctl-on', true);
+  $('ctlCard').hidden = false; $('ctlBtn').hidden = true;
+  if (!ctl.code) { ctl.code = RRPair.newCode(); store.set('rr-ctl-code', ctl.code); }
+  ctlShowCode(); ctlStart();
+}
+async function ctlStart() {
+  if (!ctl.on || (ctl.peer && !ctl.peer.destroyed)) return;
+  clearTimeout(ctl.retryT);
+  ctlSet('starting', 'Connecting to the pairing server…');
+  let Peer;
+  try { Peer = await RRPair.loadPeer(); }
+  catch { ctlSet('error', 'Couldn’t load the phone link. Check the internet connection, then try again. The game works without it.'); ctlRetryLater(8000); return; }
+  if (!ctl.on || (ctl.peer && !ctl.peer.destroyed)) return;
+  let peer;
+  try { peer = new Peer(RRPair.idFor(ctl.code), RRPair.peerOptions()); }
+  catch (e) { console.warn(e); ctlSet('error', 'This browser can’t link to a phone.'); return; }
+  ctl.peer = peer;
+  peer.on('open', () => { if (ctl.peer === peer) ctlSet('waiting', ''); });
+  peer.on('connection', conn => { if (ctl.peer === peer) ctlAttach(conn); });
+  peer.on('disconnected', () => {
+    // lost the broker. A phone that is already linked keeps working; reconnect for the next one.
+    if (ctl.peer !== peer || peer.destroyed) return;
+    if (!(ctl.conn && ctl.conn.open)) ctlSet('starting', 'Lost the pairing server. Reconnecting…');
+    ctlRetryLater(2500);
+  });
+  peer.on('error', err => {
+    if (ctl.peer !== peer) return;
+    console.warn('pocket controller:', err.type, err.message);
+    if (err.type === 'unavailable-id') {
+      // code taken (maybe the game is open in another tab): pick a new one
+      peer.destroy(); ctl.peer = null; ctl.code = RRPair.newCode(); store.set('rr-ctl-code', ctl.code);
+      ctlShowCode(); ctlStart();
+    } else if (RRPair.NET_ERRORS.includes(err.type)) {
+      if (!(ctl.conn && ctl.conn.open)) ctlSet('error', 'Can’t reach the pairing server (PeerJS cloud). Check the internet connection. Retrying… The game still works without the phone.');
+      ctlRetryLater(5000);
+    } else if (err.type === 'browser-incompatible') ctlSet('error', 'This browser can’t link to a phone (no WebRTC).');
+  });
+}
+function ctlRetryLater(ms) {
+  clearTimeout(ctl.retryT);
+  ctl.retryT = setTimeout(() => {
+    if (!ctl.on) return;
+    const p = ctl.peer;
+    if (p && !p.destroyed && p.disconnected) { try { p.reconnect(); return; } catch {} }
+    if (p && !p.destroyed && p.open) return;
+    if (p) { try { p.destroy(); } catch {} }
+    ctl.peer = null; ctlStart();
+  }, ms);
+}
+function ctlAttach(conn) {
+  if (ctl.conn && ctl.conn !== conn) { try { ctl.conn.close(); } catch {} }   // one phone at a time: the newest wins
+  ctl.conn = conn; ctl.ready = false; ctl.phoneStatus = '';
+  const opened = () => {
+    if (ctl.conn !== conn) return;
+    ctl.lastMsg = performance.now(); ctl.sentState = '';
+    ctlSet('connected');
+    if (ctl.debug) ctlSend({ t: 'debug', on: true });
+  };
+  if (conn.open) opened(); else conn.on('open', opened);
+  conn.on('data', m => { if (ctl.conn === conn) ctlData(m); });
+  conn.on('close', () => {
+    if (ctl.conn !== conn) return;
+    const was = ctlActive();
+    ctl.conn = null; ctl.ready = false; ctl.holdUntil = 0;
+    ctlSet(ctl.peer && ctl.peer.open ? 'waiting' : 'starting', 'Phone disconnected. It reconnects by itself while its page is open.');
+    if (was) ctlLostToast();
+  });
+  conn.on('error', e => console.warn('pocket controller link:', e));
+}
+function ctlLostToast() {
+  if (game.state !== 'play') return;
+  toast('Phone lost', 'warn', game.mode === 'camera' ? 'Camera jumps and ducks are back on' : 'Use ↑ and ↓ to jump and roll');
+  if (game.mode === 'camera') { pose.armJ = true; pose.armD = true; }
+}
+function ctlData(m) {
+  if (!m || typeof m !== 'object') return;
+  const wasActive = ctlActive();
+  ctl.lastMsg = performance.now(); ctl.staleShown = false;
+  switch (m.t) {
+    case 'hello': case 'state': case 'hb':
+      if ('ready' in m) ctl.ready = !!m.ready;
+      if (m.status) ctl.phoneStatus = String(m.status);
+      break;
+    case 'jump': case 'duck': case 'up': ctlMove(m); break;
+    case 'say': if (typeof m.text === 'string') toast(m.text.slice(0, 40), 'good'); break;
+    case 'pong': if (typeof m.ts === 'number') ctl.rtt = performance.now() - m.ts; break;
+    case 'tel': ctl.tel = m; break;
+  }
+  if (!wasActive && ctlActive() && game.state === 'play') toast('Phone ready', 'good', 'Jump and duck with the phone in your pocket');
+  ctlRender();
+}
+function ctlMove(m) {
+  if (m.id !== undefined) {
+    if (ctl.seen.has(m.id)) return;
+    ctl.seen.add(m.id);
+    if (ctl.seen.size > 300) ctl.seen = new Set([...ctl.seen].slice(-100));
+  }
+  if (m.t === 'jump' || m.t === 'duck') {
+    ctl.lastMove = m.t; ctl.moveT = performance.now();
+    $('ctlMove').textContent = `Phone felt: ${m.t === 'jump' ? 'JUMP' : 'DUCK'}`;
+  }
+  if (!ctl.ready || game.state !== 'play' || game.paused) return;
+  if (m.t === 'jump') { jump(); flash('JUMP'); }
+  else if (m.t === 'duck') { duck(); flash('DUCK'); player.holdDuck = true; ctl.holdUntil = performance.now() + 1500; }
+  else if (m.t === 'up') { player.holdDuck = false; ctl.holdUntil = 0; }
+}
+// called every frame
+function ctlTick(now) {
+  if (!ctl.on) return;
+  if (ctl.holdUntil && now > ctl.holdUntil) { ctl.holdUntil = 0; player.holdDuck = false; }
+  if (ctl.moveT && now - ctl.moveT > 1200) { ctl.moveT = 0; $('ctlMove').textContent = ''; }
+  if (!(ctl.conn && ctl.conn.open)) return;
+  const state = game.state + (game.paused ? '-paused' : '') + '/' + game.mode;
+  if (state !== ctl.sentState) { ctl.sentState = state; ctlSend({ t: 'game', state: game.paused ? 'paused' : game.state, mode: game.mode }); }
+  if (now - ctl.pingT > 2000) { ctl.pingT = now; ctlSend({ t: 'ping', ts: now }); ctlRender(); }
+  if (ctl.ready && !ctlFresh() && !ctl.staleShown) { ctl.staleShown = true; ctlRender(); ctlLostToast(); }
+}
+function ctlStop() {
+  ctl.on = false; store.set('rr-ctl-on', false);
+  clearTimeout(ctl.retryT);
+  try { if (ctl.conn) ctl.conn.close(); } catch {}
+  try { if (ctl.peer) ctl.peer.destroy(); } catch {}
+  ctl.conn = null; ctl.peer = null; ctl.ready = false; ctl.holdUntil = 0; player.holdDuck = false;
+  $('ctlCard').hidden = true; $('ctlBtn').hidden = false;
+  ctlSet('off');
+}
+$('ctlBtn').addEventListener('click', () => { audioOn(); ctlOpenCard(); $('ctlCard').scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+$('ctlOff').addEventListener('click', ctlStop);
+$('ctlRetry').addEventListener('click', () => { if (ctl.peer) { try { ctl.peer.destroy(); } catch {} } ctl.peer = null; ctlStart(); });
+if (ctl.on && window.RRPair) ctlOpenCard();
 
 // ---------------------------------------------------------------- input
 $('camBtn').addEventListener('click', () => { audioOn(); startCamera(); });
@@ -1660,6 +1906,7 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  ctlTick(now);
   if (game.mode === 'camera' && pose.stream) {
     if (pose.rvfc) poseFlow(now, false);
     else { const fresh = readPose(now); poseFlow(now, fresh); }
@@ -1699,7 +1946,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // test hooks
-window.__rr = { game, player, pose, startRun, moveLane, jump, duck, beginCalib, applyFx, thresholds };
+window.__rr = { game, player, pose, startRun, moveLane, jump, duck, beginCalib, applyFx, thresholds, ctl, ctlData, ctlActive };
 window.__ents = () => entities;
 window.__ctl = controlFromPose;
 window.__flow = poseFlow;
